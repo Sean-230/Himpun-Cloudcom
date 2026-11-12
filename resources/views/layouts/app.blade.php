@@ -7,12 +7,17 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 @php
+$pendingReqCount = collect(session('division_requests', \App\Support\DummyData::divisionRequests()))
+        ->where('status', 'Menunggu')
+        ->count();
+
     $nav = [
         ['Ringkasan', 'home', route('dashboard')],
         ['Proker', 'flag', route('proker.create')],
         ['Panitia saya', 'briefcase', '#'],
         ['Anggota', 'users', '#'],
         ['Divisi & jobdesc', 'grid', '#'],
+        ['Request divisi', 'megaphone', route('request.index'), $pendingReqCount ?: null],
         ['Persetujuan', 'check', '#', 5],
         ['Anggaran', 'wallet', '#'],
         ['Oprec', 'megaphone', '#'],

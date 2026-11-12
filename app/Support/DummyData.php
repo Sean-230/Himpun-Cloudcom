@@ -193,4 +193,63 @@ class DummyData
             fn ($p) => $p['status'] !== 'Selesai' && self::roleIn($p, $name) !== null,
         ));
     }
+
+    /** Dummy data untuk permintaan/rikues antar-koordinator divisi. */
+    public static function divisionRequests(): array
+    {
+        return [
+            [
+                'id' => 101,
+                'proker' => 'Techfest UC 2026',
+                'dari_divisi' => 'PDD Dokum',
+                'dari_koor' => 'Valerie Susanto',
+                'ke_divisi' => 'Inventory',
+                'ke_koor' => 'Bryan Santoso',
+                'judul' => 'Peminjaman 2 Tripod & Kabel Roll 15m untuk Booth Photobooth',
+                'catatan' => 'Dibutuhkan H-1 sore untuk instalasi lighting area depan Auditorium UC.',
+                'tenggat' => '2026-12-11',
+                'status' => 'Menunggu', // Menunggu, Diproses, Selesai, Ditolak
+                'waktu' => '2 jam lalu',
+            ],
+            [
+                'id' => 102,
+                'proker' => 'Techfest UC 2026',
+                'dari_divisi' => 'Event',
+                'dari_koor' => 'Felicia Hartono',
+                'ke_divisi' => 'PDD Dokum',
+                'ke_koor' => 'Valerie Susanto',
+                'judul' => 'Dokumentasi Video Teaser & Bumper Pembukaan Acara',
+                'catatan' => 'Durasi maksimal 45 detik, format landscape 16:9 untuk layar utama.',
+                'tenggat' => '2026-12-05',
+                'status' => 'Diproses',
+                'waktu' => '1 hari lalu',
+            ],
+            [
+                'id' => 103,
+                'proker' => 'Techfest UC 2026',
+                'dari_divisi' => 'Inventory',
+                'dari_koor' => 'Bryan Santoso',
+                'ke_divisi' => 'PDD Design',
+                'ke_koor' => 'Clarissa Putri',
+                'judul' => 'Desain Signboard Arah Ruangan & Label Meja Registrasi',
+                'catatan' => 'Ukuran A3 siap cetak (PDF CMYK), total 6 titik lokasi.',
+                'tenggat' => '2026-12-08',
+                'status' => 'Menunggu',
+                'waktu' => '3 jam lalu',
+            ],
+            [
+                'id' => 104,
+                'proker' => 'Webinar Series: Career Talk',
+                'dari_divisi' => 'Event',
+                'dari_koor' => 'Angeline Chandra',
+                'ke_divisi' => 'Tech',
+                'ke_koor' => 'Andreas Gunawan',
+                'judul' => 'Setup Link Zoom Webinar & Form Absensi QR Otomatis',
+                'catatan' => 'Kapasitas 300 peserta dengan fitur Q&A aktif.',
+                'tenggat' => '2026-11-26',
+                'status' => 'Selesai',
+                'waktu' => '3 hari lalu',
+            ],
+        ];
+    }
 }
