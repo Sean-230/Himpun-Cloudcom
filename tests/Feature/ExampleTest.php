@@ -10,10 +10,19 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_home_redirects_to_the_dashboard(): void
     {
-        $response = $this->get('/');
+        $this->get('/')->assertRedirect('/dashboard');
+    }
 
-        $response->assertStatus(200);
+    public function test_the_dashboard_loads(): void
+    {
+        // CI runs tests before building assets, so there is no Vite manifest yet.
+        $this->withoutVite()->get('/dashboard')->assertOk();
+    }
+
+    public function test_the_proker_form_loads(): void
+    {
+        $this->withoutVite()->get('/proker/baru')->assertOk()->assertSee('Buat proker');
     }
 }
