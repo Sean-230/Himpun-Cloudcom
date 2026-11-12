@@ -70,7 +70,7 @@ jobs:
     # Compile frontend production assets (Vite) so they are ready for deployment
     - name: Install NPM Dependencies & Build Assets
       run: |
-        npm ci
+        npm i
         npm run build
 
 
