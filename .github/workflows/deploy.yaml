@@ -107,6 +107,20 @@ jobs:
     - name: Package Vendor Directory
       run: tar -czf vendor.tar.gz vendor
 
+    # public/build is gitignored too: without it every page that uses @vite returns HTTP 500.
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build Frontend Assets
+      run: |
+        npm ci
+        npm run build
+
+    - name: Package Built Assets
+      run: tar -czf build.tar.gz -C public build
+
     - name: Upload Vendor Package to Server
       uses: appleboy/scp-action@v1.0.0
       with:
@@ -114,7 +128,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         password: ${{ secrets.SSH_PASSWORD }}
         port: 22
-        source: "vendor.tar.gz"
+        source: "vendor.tar.gz,build.tar.gz"
         target: "/home/gambitneverfold-himpun/htdocs/himpun.gambitneverfold.web.id"
 
     - name: Deploy via SSH
@@ -135,6 +149,10 @@ jobs:
           rm -rf vendor
           tar -xzf vendor.tar.gz
           rm -f vendor.tar.gz
+
+          rm -rf public/build
+          tar -xzf build.tar.gz -C public
+          rm -f build.tar.gz
 
           rm -f bootstrap/cache/packages.php
           rm -f bootstrap/cache/services.php
