@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+@theme {
+  /* Brand Palette - Himpun SU IMT UC */
+  --color-himpun-midnight: #0A1931; /* Sidebar utama, top header dark, teks utama */
+  --color-himpun-ocean: #1A3D63;    /* Card header gelap, active nav item, hover state */
+  --color-himpun-steel: #4A7FA7;    /* Primary CTA button, active tab indicator, badge aksen */
+  --color-himpun-ice: #B3CFE5;      /* Border halus, highlight banner, soft badge background */
+  --color-himpun-frost: #F6FAFD;    /* Canvas background utama halaman */
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
