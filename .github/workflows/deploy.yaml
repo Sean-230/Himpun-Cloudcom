@@ -115,7 +115,7 @@ jobs:
 
     - name: Build Frontend Assets
       run: |
-        npm ci
+        npm i
         npm run build
 
     - name: Package Built Assets
