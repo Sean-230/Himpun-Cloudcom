@@ -57,6 +57,46 @@ class DummyData
         return array_map(fn ($j) => ['title' => $j[0], 'h' => $j[1]], self::JOBDESC[$division] ?? []);
     }
 
+    /** The four views of the app. */
+    public const ROLES = ['hod' => 'HOD', 'pj' => 'PJ', 'koor' => 'Koordinator', 'anggota' => 'Anggota'];
+
+    /** Who the demo switcher can act as, per role. */
+    public static function peopleFor(string $role): array
+    {
+        $members = self::members();
+        $letters = fn (string $name) => array_filter(array_map(fn ($p) => self::roleIn($p, $name), self::prokers()));
+        $names = array_column($members, 'name');
+
+        return array_values(match ($role) {
+            'hod' => array_column(array_filter($members, fn ($m) => $m['hod']), 'name'),
+            'pj' => array_unique(array_column(self::prokers(), 'pj')),
+            'koor' => array_filter($names, fn ($n) => in_array('Ko', $letters($n), true)),
+            // Pure members only: someone who also coordinates somewhere would see more than an anggota.
+            'anggota' => array_filter($names, fn ($n) => ($r = $letters($n)) && ! array_diff($r, ['A'])),
+            default => [],
+        });
+    }
+
+    /** Numbers shown on lists and summaries for one proker. */
+    public static function stats(array $p): array
+    {
+        $today = new \DateTimeImmutable('today');
+        $hariH = new \DateTimeImmutable($p['hariH']);
+        $jobdesc = array_merge([], ...array_map(fn ($d) => $d['jobdesc'], $p['divisions']));
+        $sum = fn (string $key) => array_sum(array_map(fn ($d) => count($d[$key]), $p['divisions']));
+
+        return [
+            'divisi' => count($p['divisions']),
+            'koor' => $sum('koor'),
+            'anggota' => $sum('anggota'),
+            'total' => count($jobdesc),
+            'done' => count(array_filter($jobdesc, fn ($j) => $j['done'])),
+            'overdue' => count(array_filter($jobdesc, fn ($j) => ! $j['done'] && $hariH->modify(sprintf('%+d days', -$j['h'])) < $today)),
+            'daysLeft' => (int) $today->diff($hariH)->format('%r%a'),
+            'spent' => $p['realisasi'] ? (int) round($p['realisasi'] / $p['rencana'] * 100) : null,
+        ];
+    }
+
     /** Divisions a proker committee can switch on. */
     public static function divisionDefs(): array
     {

@@ -28,19 +28,22 @@
     tab: 'semua',
     showModal: {{ $errors->any() ? 'true' : 'false' }},
     filterDivisi: 'semua',
-    selectedProker: '{{ old('proker', $aktifProkers->first()['nama'] ?? '') }}',
-    dariDivisi: '{{ old('dari_divisi', 'PDD Dokum') }}',
+    coordinated: @js($coordinated),
+    selectedProker: '{{ old('proker', array_key_first($coordinated) ?? '') }}',
+    dariDivisi: '{{ old('dari_divisi', ($coordinated[array_key_first($coordinated) ?? ''] ?? [''])[0]) }}',
     keDivisi: '{{ old('ke_divisi', 'Inventory') }}'
 }">
     {{-- Header Halaman --}}
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
             <h1 class="text-[22px] font-semibold leading-tight">Request antar divisi</h1>
-            <p class="mt-0.5 text-muted">Koordinasi kebutuhan operasional lintas koordinator divisi</p>
+            <p class="mt-0.5 text-muted">{{ $isKoor ? 'Request yang kamu kirim atau terima' : 'Semua request antar koordinator (hanya lihat)' }}</p>
         </div>
-        <button type="button" @click="showModal = true" class="inline-flex h-9 items-center gap-2 rounded-[10px] bg-accent px-4 font-medium text-white hover:opacity-95">
-            <span>+ Buat request baru</span>
-        </button>
+        @if ($canCreate)
+            <button type="button" @click="showModal = true" class="inline-flex h-9 items-center gap-2 rounded-[10px] bg-accent px-4 font-medium text-white hover:opacity-95">
+                <span>+ Buat request baru</span>
+            </button>
+        @endif
     </div>
 
     {{-- Alert Notifikasi Sukses --}}
@@ -119,7 +122,9 @@
 
                     {{-- Aksi Koordinator Tujuan --}}
                     <div class="flex items-center gap-2">
-                        @if ($req['status'] === 'Menunggu')
+                        @if (! ($isKoor && $req['ke_koor'] === $me['name']))
+                            {{-- read only: HOD, or a koordinator looking at a request they sent --}}
+                        @elseif ($req['status'] === 'Menunggu')
                             <form method="POST" action="{{ route('request.status', $req['id']) }}">
                                 @csrf
                                 @method('PATCH')
@@ -156,6 +161,7 @@
         @endforelse
     </div>
 
+    @if ($canCreate)
     {{-- Modal Form Buat Request Baru --}}
     <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @keydown.escape.window="showModal = false">
         <div class="w-full max-w-lg rounded-2xl border border-line bg-white p-6" @click.outside="showModal = false">
@@ -175,9 +181,9 @@
 
                 <div>
                     <label class="block text-[13px] font-medium text-ink">Program Kerja (Proker)</label>
-                    <select name="proker" x-model="selectedProker" required class="mt-1 h-9 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-line">
-                        @foreach ($aktifProkers as $p)
-                            <option value="{{ $p['nama'] }}">{{ $p['nama'] }}</option>
+                    <select name="proker" x-model="selectedProker" @change="dariDivisi = (coordinated[selectedProker] || [])[0] || ''" required class="mt-1 h-9 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-line">
+                        @foreach (array_keys($coordinated) as $nama)
+                            <option value="{{ $nama }}">{{ $nama }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -186,9 +192,9 @@
                     <div>
                         <label class="block text-[13px] font-medium text-ink">Dari Divisi (Pengirim)</label>
                         <select name="dari_divisi" x-model="dariDivisi" required class="mt-1 h-9 w-full rounded-lg bg-white px-3 text-sm ring-1 ring-line">
-                            @foreach ($divisions as $div)
-                                <option value="{{ $div['name'] }}">{{ $div['name'] }}</option>
-                            @endforeach
+                            <template x-for="d in (coordinated[selectedProker] || [])" :key="d">
+                                <option :value="d" x-text="d"></option>
+                            </template>
                         </select>
                     </div>
 
@@ -232,5 +238,6 @@
             </form>
         </div>
     </div>
+    @endif
 </div>
 @endsection

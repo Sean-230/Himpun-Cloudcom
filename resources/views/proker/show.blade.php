@@ -13,7 +13,7 @@
 
 @section('content')
 {{-- shortcut: jobdesc and meeting changes live in the page only; saving needs the models. --}}
-<div x-data="prokerDetail(@js($proker))">
+<div x-data="prokerDetail(@js($proker), { canEdit: @js($canEdit) })">
     <a href="{{ route('proker.index') }}" class="text-[13px] text-muted hover:text-ink">← Proker</a>
     <h1 class="mt-1 text-[22px] font-semibold leading-tight">{{ $proker['nama'] }}</h1>
     <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted">
@@ -52,7 +52,7 @@
         <div class="flex min-w-0 flex-col gap-4">
             <div>
                 <h2 class="text-base font-semibold">Jobdesc dan target per divisi</h2>
-                <p class="mt-0.5 text-[13px] text-muted">Target dihitung mundur dari Hari-H. Centang kalau sudah selesai.</p>
+                <p class="mt-0.5 text-[13px] text-muted" x-text="canEdit ? 'Target dihitung mundur dari Hari-H. Centang kalau sudah selesai.' : 'Target dihitung mundur dari Hari-H. Hanya HOD yang bisa mengubah jobdesc dan jadwal rapat.'"></p>
             </div>
 
             <template x-for="div in divisions" :key="div.name">
@@ -69,18 +69,18 @@
                     <ul class="mt-3">
                         <template x-for="j in div.jobdesc" :key="j.id">
                             <li class="flex items-start gap-3 border-t border-line py-2.5 first:border-t-0">
-                                <input type="checkbox" x-model="j.done" class="mt-0.5 size-4 shrink-0 accent-accent" :aria-label="'Selesai: ' + j.title">
+                                <input type="checkbox" x-model="j.done" :disabled="!canEdit" class="mt-0.5 size-4 shrink-0 accent-accent disabled:opacity-60" :aria-label="'Selesai: ' + j.title">
                                 <span class="min-w-0 flex-1" :class="j.done && 'text-muted line-through'" x-text="j.title"></span>
                                 <span class="shrink-0 text-[13px] tabular-nums text-muted" x-text="targetLabel(j.h) + ' · ' + fmtShort(dateFor(j.h))"></span>
                                 <span x-show="status(j) !== 'Belum'" class="shrink-0 rounded-full px-2 py-0.5 text-[13px]"
                                       :class="status(j) === 'Selesai' ? 'bg-[#e6f4ec] text-good' : 'bg-[#fbe9e7] text-bad'" x-text="status(j)"></span>
-                                <button type="button" @click="removeJobdesc(div, j.id)" class="px-1 text-muted hover:text-ink" :aria-label="'Hapus jobdesc ' + j.title">×</button>
+                                <button type="button" x-show="canEdit" @click="removeJobdesc(div, j.id)" class="px-1 text-muted hover:text-ink" :aria-label="'Hapus jobdesc ' + j.title">×</button>
                             </li>
                         </template>
                     </ul>
                     <p x-show="div.jobdesc.length === 0" class="mt-3 text-[13px] text-muted">Belum ada jobdesc untuk divisi ini.</p>
 
-                    <form @submit.prevent="addJobdesc(div)" class="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                    <form x-show="canEdit" @submit.prevent="addJobdesc(div)" class="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
                         <input type="text" x-model="jobdescDraft[div.name].title" maxlength="120" placeholder="Jobdesc baru" class="field min-w-0 flex-1" :aria-label="'Jobdesc baru untuk ' + div.name">
                         <label class="flex items-center gap-1.5 text-[13px] text-muted">
                             <span>Target H-</span>
@@ -105,13 +105,13 @@
                                     <p class="font-medium" x-text="scopeLabel(r.scope)"></p>
                                     <p class="text-[13px] text-muted" x-text="'Setiap ' + dayName(r.day) + ' · ' + r.time + ' · ' + (r.place || 'Tempat belum diisi')"></p>
                                 </div>
-                                <button type="button" @click="removeRapat(r.id)" class="px-1 text-muted hover:text-ink" :aria-label="'Hapus ' + scopeLabel(r.scope)">×</button>
+                                <button type="button" x-show="canEdit" @click="removeRapat(r.id)" class="px-1 text-muted hover:text-ink" :aria-label="'Hapus ' + scopeLabel(r.scope)">×</button>
                             </li>
                         </template>
                     </ul>
-                    <p x-show="rapat.length === 0" class="border-b border-line p-4 text-muted">Belum ada jadwal rapat. Tambahkan rapat mingguan pertama di bawah.</p>
+                    <p x-show="rapat.length === 0" class="border-b border-line p-4 text-muted last:border-b-0" x-text="canEdit ? 'Belum ada jadwal rapat. Tambahkan rapat mingguan pertama di bawah.' : 'Belum ada jadwal rapat.'"></p>
 
-                    <form @submit.prevent="addRapat()" class="grid grid-cols-2 gap-3 p-4">
+                    <form x-show="canEdit" @submit.prevent="addRapat()" class="grid grid-cols-2 gap-3 p-4">
                         <label class="col-span-2">
                             <span class="mb-1.5 block font-medium">Rapat</span>
                             <select x-model="rapatDraft.scope" class="field">

@@ -15,11 +15,11 @@ const proker = () => ({
     ],
     rapat: [{ id: 1, scope: 'pleno', day: 4, time: '19:00', place: 'Zoom' }],
 });
-const make = () => prokerDetail(proker(), TODAY);
+const make = () => prokerDetail(proker(), { today: TODAY });
 
 test('the days left count down to Hari-H', () => {
     assert.equal(make().daysLeft, 30);
-    assert.equal(prokerDetail({ ...proker(), hariH: '2026-11-10' }, TODAY).daysLeft, -2);
+    assert.equal(prokerDetail({ ...proker(), hariH: '2026-11-10' }, { today: TODAY }).daysLeft, -2);
 });
 
 test('a jobdesc target counts back from Hari-H', () => {
@@ -104,7 +104,7 @@ test('a meeting on Hari-H itself is included, none after it', () => {
 });
 
 test('no meetings once Hari-H has passed', () => {
-    const f = prokerDetail({ ...proker(), hariH: '2026-11-01' }, TODAY);
+    const f = prokerDetail({ ...proker(), hariH: '2026-11-01' }, { today: TODAY });
     assert.deepEqual(f.meetings, []);
 });
 
@@ -137,4 +137,17 @@ test('schedules are listed Monday first and can be removed', () => {
     assert.deepEqual(f.rapat.map((r) => r.day), [1, 4, 0]);
     f.removeRapat(f.rapat[0].id);
     assert.equal(f.rapat.length, 2);
+});
+
+test('without edit rights nothing can be changed', () => {
+    const f = prokerDetail(proker(), { today: TODAY, canEdit: false });
+    const event = f.divisions[0];
+    f.jobdescDraft.Event = { title: 'Baru', h: 5 };
+    f.addJobdesc(event);
+    f.removeJobdesc(event, event.jobdesc[0].id);
+    f.rapatDraft = { scope: 'koor', day: '1', time: '20:00', place: '' };
+    f.addRapat();
+    f.removeRapat(f.rapat[0].id);
+    assert.equal(event.jobdesc.length, 3);
+    assert.equal(f.rapat.length, 1);
 });

@@ -7,24 +7,27 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 @php
-$pendingReqCount = collect(session('division_requests', \App\Support\DummyData::divisionRequests()))
+    // Pending requests: everything for the HOD, only the ones addressed to you for a koordinator.
+    $pendingReqCount = collect(session('division_requests', \App\Support\DummyData::divisionRequests()))
         ->where('status', 'Menunggu')
+        ->when($me['role'] === 'koor', fn ($c) => $c->where('ke_koor', $me['name']))
         ->count();
 
-    $nav = [
-        ['Ringkasan', 'home', route('dashboard')],
-        ['Proker', 'flag', route('proker.index')],
-        ['Panitia saya', 'briefcase', '#'],
-        ['Anggota', 'users', '#'],
-        ['Divisi & jobdesc', 'grid', '#'],
-        ['Request divisi', 'megaphone', route('request.index'), $pendingReqCount ?: null],
-        ['Persetujuan', 'check', '#', 5],
-        ['Anggaran', 'wallet', '#'],
-        ['Oprec', 'megaphone', '#'],
-        ['Pulse', 'sparkle', '#'],
-        ['Dokumen', 'file', '#'],
-        ['Pengaturan', 'sliders', '#'],
-    ];
+    // [label, icon, href, count, roles allowed to see it]
+    $nav = collect([
+        ['Ringkasan', 'home', route('dashboard'), null, ['hod', 'pj']],
+        ['Proker', 'flag', route('proker.index'), null, ['hod', 'pj']],
+        ['Proker saya', 'flag', route('proker.index'), null, ['koor', 'anggota']],
+        ['Anggota', 'users', '#', null, ['hod']],
+        ['Divisi & jobdesc', 'grid', '#', null, ['hod']],
+        ['Request divisi', 'megaphone', route('request.index'), $pendingReqCount ?: null, ['hod', 'koor']],
+        ['Persetujuan', 'check', '#', 5, ['hod']],
+        ['Anggaran', 'wallet', '#', null, ['hod']],
+        ['Oprec', 'megaphone', '#', null, ['hod']],
+        ['Pulse', 'sparkle', '#', null, ['hod']],
+        ['Dokumen', 'file', '#', null, ['hod']],
+        ['Pengaturan', 'sliders', '#', null, ['hod']],
+    ])->filter(fn ($item) => in_array($me['role'], $item[4], true))->values()->all();
 @endphp
 <body class="bg-frame font-sans text-sm text-ink antialiased">
 <div class="flex h-dvh">
@@ -68,16 +71,23 @@ $pendingReqCount = collect(session('division_requests', \App\Support\DummyData::
                 <kbd class="text-[13px]">⌘K</kbd>
             </label>
             <div class="ml-auto flex items-center gap-3">
-                <span class="hidden text-[13px] text-muted md:inline">Tampilkan sebagai</span>
-                <select aria-label="Tampilkan sebagai" class="h-8 rounded-lg bg-white/70 px-2 text-[13px] ring-1 ring-line">
-                    <option>HOD/PJ</option>
-                    <option>Anggota</option>
-                    <option>Koordinator</option>
-                    <option>Ketupel</option>
-                    <option>Dosen Pembina</option>
-                </select>
+                {{-- Demo identity (stands in for login): pick a role, then who you are in it. --}}
+                <form method="POST" action="{{ route('role.switch') }}" x-data="roleSwitch(@js($roleOptions), @js($me['role']), @js($me['name']))" class="flex items-center gap-2">
+                    @csrf
+                    <span class="hidden text-[13px] text-muted xl:inline">Tampilkan sebagai</span>
+                    <select name="role" x-model="role" @change="pickRole($el.form)" aria-label="Peran" class="h-8 rounded-lg bg-white/70 px-2 text-[13px] ring-1 ring-line">
+                        @foreach (\App\Support\DummyData::ROLES as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <select name="person" x-model="person" @change="$el.form.submit()" aria-label="Pengguna" class="h-8 w-28 rounded-lg bg-white/70 px-2 text-[13px] ring-1 ring-line sm:w-40">
+                        <template x-for="name in options[role]" :key="name">
+                            <option :value="name" x-text="name"></option>
+                        </template>
+                    </select>
+                </form>
                 <button type="button" class="text-muted hover:text-ink" aria-label="Notifikasi"><x-icon name="bell" /></button>
-                <x-avatar name="Michelle Wijaya" />
+                <x-avatar :name="$me['name']" />
             </div>
         </header>
 

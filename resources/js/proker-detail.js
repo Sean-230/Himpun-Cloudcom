@@ -5,9 +5,10 @@ const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const WEEK = [1, 2, 3, 4, 5, 6, 0]; // Senin first
 let nextId = 1000;
 
-export default (proker, today = new Date().toLocaleDateString('en-CA')) => ({
+export default (proker, { today = new Date().toLocaleDateString('en-CA'), canEdit = true } = {}) => ({
     proker,
     today,
+    canEdit, // only the HOD edits; the server decides, this just keeps the controls honest
     weekdays: WEEK.map((day) => ({ day, name: DAYS[day] })),
     divisions: proker.divisions.map((d) => ({ ...d, jobdesc: d.jobdesc.map((j) => ({ id: ++nextId, ...j })) })),
     rapat: proker.rapat.map((r) => ({ ...r })),
@@ -47,6 +48,7 @@ export default (proker, today = new Date().toLocaleDateString('en-CA')) => ({
     },
 
     addJobdesc(div) {
+        if (!this.canEdit) return;
         const draft = this.jobdescDraft[div.name];
         const title = draft.title.trim();
         if (!title) {
@@ -63,6 +65,7 @@ export default (proker, today = new Date().toLocaleDateString('en-CA')) => ({
         draft.title = '';
     },
     removeJobdesc(div, id) {
+        if (!this.canEdit) return;
         div.jobdesc = div.jobdesc.filter((j) => j.id !== id);
     },
 
@@ -72,6 +75,7 @@ export default (proker, today = new Date().toLocaleDateString('en-CA')) => ({
         return `Rapat divisi ${scope.replace('div:', '')}`;
     },
     addRapat() {
+        if (!this.canEdit) return;
         const d = this.rapatDraft;
         const day = Number(d.day);
         if (!d.time) {
@@ -87,6 +91,7 @@ export default (proker, today = new Date().toLocaleDateString('en-CA')) => ({
         this.rapat.sort((a, b) => WEEK.indexOf(a.day) - WEEK.indexOf(b.day) || a.time.localeCompare(b.time));
     },
     removeRapat(id) {
+        if (!this.canEdit) return;
         this.rapat = this.rapat.filter((r) => r.id !== id);
     },
     // Every meeting date from today up to Hari-H, soonest first.
