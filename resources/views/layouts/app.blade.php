@@ -13,7 +13,7 @@ $pendingReqCount = collect(session('division_requests', \App\Support\DummyData::
 
     $nav = [
         ['Ringkasan', 'home', route('dashboard')],
-        ['Proker', 'flag', route('proker.create')],
+        ['Proker', 'flag', route('proker.index')],
         ['Panitia saya', 'briefcase', '#'],
         ['Anggota', 'users', '#'],
         ['Divisi & jobdesc', 'grid', '#'],
@@ -40,7 +40,7 @@ $pendingReqCount = collect(session('division_requests', \App\Support\DummyData::
                 @php [$label, $icon, $href] = $item; $count = $item[3] ?? null; @endphp
                 <a href="{{ $href }}" @class([
                     'flex h-8 items-center gap-2.5 rounded-lg px-2 text-muted hover:bg-black/5 hover:text-ink',
-                    'bg-black/5 font-medium text-ink' => request()->url() === $href,
+                    'bg-black/5 font-medium text-ink' => request()->url() === $href || ($href !== '#' && str_starts_with(request()->url(), $href.'/')),
                 ])>
                     <x-icon :name="$icon" />
                     <span>{{ $label }}</span>

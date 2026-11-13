@@ -1,8 +1,13 @@
 // State for the HOD "Buat proker" screen. Koordinator and anggota are optional on purpose:
 // a division can be switched on with nobody assigned yet.
+import { addDays, fmtShort, targetLabel } from './dates.js';
+
+let jobdescId = 0;
+const withIds = (list = []) => list.map((j) => ({ id: ++jobdescId, title: j.title, h: j.h }));
+
 export default (members, divisionDefs) => ({
     members,
-    divisions: divisionDefs.map((d) => ({ ...d, on: false, koor: [], anggota: [] })),
+    divisions: divisionDefs.map((d) => ({ ...d, on: false, koor: [], anggota: [], jobdesc: withIds(d.jobdesc) })),
     form: { name: '', type: 'new', previous: '', hariH: '', lokasi: '', ketupel: '', pj: '' },
     custom: '',
     done: false,
@@ -14,7 +19,7 @@ export default (members, divisionDefs) => ({
     },
     get totals() {
         const sum = (key) => this.active.reduce((n, d) => n + d[key].length, 0);
-        return { divisi: this.active.length, koor: sum('koor'), anggota: sum('anggota') };
+        return { divisi: this.active.length, koor: sum('koor'), anggota: sum('anggota'), jobdesc: sum('jobdesc') };
     },
     get today() {
         return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
@@ -50,6 +55,9 @@ export default (members, divisionDefs) => ({
         else if (f.hariH < this.today) e.hariH = 'Hari-H tidak boleh sebelum hari ini.';
         if (f.type === 'repeat' && !f.previous) e.previous = 'Pilih proker periode lalu yang diulang.';
         if (!this.active.length) e.divisions = 'Pilih minimal satu divisi.';
+        const jobdescs = this.active.flatMap((d) => d.jobdesc);
+        if (jobdescs.some((j) => !j.title.trim())) e.jobdesc = 'Ada jobdesc yang judulnya masih kosong. Isi atau hapus.';
+        else if (jobdescs.some((j) => !Number.isInteger(j.h))) e.jobdesc = 'Target jobdesc harus berupa angka (hari sebelum Hari-H).';
         for (const m of this.members) {
             const held = this.holds(m.id);
             if (held.length < 2) continue;
@@ -127,7 +135,7 @@ export default (members, divisionDefs) => ({
         if (!name) return;
         const existing = this.divisions.find((d) => d.name.toLowerCase() === name.toLowerCase());
         if (existing) existing.on = true;
-        else this.divisions.push({ name, desc: 'Divisi tambahan', on: true, koor: [], anggota: [] });
+        else this.divisions.push({ name, desc: 'Divisi tambahan', on: true, koor: [], anggota: [], jobdesc: [] });
         this.custom = '';
     },
 
@@ -143,6 +151,18 @@ export default (members, divisionDefs) => ({
     avatarStyle(name) {
         const h = this.hue(name);
         return `background: hsl(${h} 55% 92%); color: hsl(${h} 40% 28%)`;
+    },
+
+    targetLabel,
+    // Calendar date of a jobdesc target, once Hari-H is known.
+    targetDate(h) {
+        return this.form.hariH && Number.isInteger(h) ? fmtShort(addDays(this.form.hariH, -h)) : '';
+    },
+    addJobdesc(div) {
+        div.jobdesc.push({ id: ++jobdescId, title: '', h: 7 });
+    },
+    removeJobdesc(div, id) {
+        div.jobdesc = div.jobdesc.filter((j) => j.id !== id);
     },
 
     fmtDate(iso) {

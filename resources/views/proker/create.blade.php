@@ -10,11 +10,11 @@
 <div x-data="prokerForm(@js($members), @js($divisions))">
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
-            <a href="{{ route('dashboard') }}" class="text-[13px] text-muted hover:text-ink">← Ringkasan</a>
+            <a href="{{ route('proker.index') }}" class="text-[13px] text-muted hover:text-ink">← Proker</a>
             <h1 class="mt-1 text-[22px] font-semibold leading-tight">Buat proker</h1>
             <p class="mt-0.5 text-muted">Sebagai HOD · SU IMT · Periode 2025/2026</p>
         </div>
-        <a href="{{ route('dashboard') }}" class="inline-flex h-9 items-center rounded-[10px] px-4 ring-1 ring-line hover:bg-black/5">Batal</a>
+        <a href="{{ route('proker.index') }}" class="inline-flex h-9 items-center rounded-[10px] px-4 ring-1 ring-line hover:bg-black/5">Batal</a>
     </div>
 
     <form x-show="!done" @submit.prevent="submit()" class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_384px]">
@@ -89,6 +89,7 @@
                 <p class="mt-0.5 text-muted">Centang divisi yang dibutuhkan. Koordinator dan anggota boleh dikosongkan dan diisi nanti. Satu orang hanya bisa punya satu peran di satu proker; memilihnya lagi memindahkan perannya.</p>
                 <p x-show="err('divisions')" x-text="err('divisions')" role="alert" data-error class="mt-1.5 text-[13px] text-bad"></p>
                 <p x-show="err('people')" x-text="err('people')" role="alert" data-error class="mt-1.5 text-[13px] text-bad"></p>
+                <p x-show="err('jobdesc')" x-text="err('jobdesc')" role="alert" data-error class="mt-1.5 text-[13px] text-bad"></p>
 
                 <div class="mt-4 flex flex-col gap-3">
                     <template x-for="div in divisions" :key="div.name">
@@ -100,7 +101,7 @@
                                     <span class="block text-[13px] text-muted" x-text="div.desc"></span>
                                 </span>
                                 <span x-show="div.on" x-cloak class="shrink-0 text-[13px] tabular-nums text-muted"
-                                      x-text="div.koor.length + ' koordinator · ' + div.anggota.length + ' anggota'"></span>
+                                      x-text="div.koor.length + ' koordinator · ' + div.anggota.length + ' anggota · ' + div.jobdesc.length + ' jobdesc'"></span>
                             </label>
 
                             <div x-show="div.on" x-cloak class="grid gap-4 border-t border-line p-4 md:grid-cols-2">
@@ -130,6 +131,27 @@
                                     </div>
                                 @endforeach
                                 <p x-show="noticeAt(div.name)" x-text="noticeAt(div.name)" role="status" class="text-[13px] text-muted md:col-span-2"></p>
+
+                                <div class="md:col-span-2">
+                                    <p class="mb-2 font-medium">Jobdesc dan target <span class="font-normal text-muted">(opsional)</span></p>
+                                    <ul class="flex flex-col gap-2">
+                                        <template x-for="j in div.jobdesc" :key="j.id">
+                                            <li class="flex items-center gap-2">
+                                                <input type="text" x-model="j.title" maxlength="120" placeholder="Apa yang harus dikerjakan divisi ini" aria-label="Jobdesc" class="field"
+                                                       :class="err('jobdesc') && !j.title.trim() && 'border-bad!'">
+                                                <input type="number" x-model.number="j.h" min="-60" max="365" aria-label="Target, hari sebelum Hari-H" class="field w-16! shrink-0 px-2! text-center">
+                                                <span class="hidden w-28 shrink-0 text-[13px] tabular-nums text-muted sm:block"
+                                                      x-text="targetLabel(j.h) + (targetDate(j.h) ? ' · ' + targetDate(j.h) : '')"></span>
+                                                <button type="button" @click="removeJobdesc(div, j.id)" class="px-1 text-muted hover:text-ink" aria-label="Hapus jobdesc">×</button>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                    <p x-show="div.jobdesc.length === 0" class="text-[13px] text-muted">Belum ada jobdesc. Bisa ditambahkan nanti.</p>
+                                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                                        <button type="button" @click="addJobdesc(div)" class="h-8 rounded-lg px-3 text-[13px] ring-1 ring-line hover:bg-black/5">Tambah jobdesc</button>
+                                        <span class="text-[13px] text-muted">Angka = hari sebelum Hari-H. Minus berarti sesudah Hari-H.</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -171,7 +193,7 @@
                 </div>
 
                 <p class="mt-4 border-t border-line pt-4 tabular-nums text-muted"
-                   x-text="totals.divisi + ' divisi · ' + totals.koor + ' koordinator · ' + totals.anggota + ' anggota'"></p>
+                   x-text="totals.divisi + ' divisi · ' + totals.koor + ' koordinator · ' + totals.anggota + ' anggota · ' + totals.jobdesc + ' jobdesc'"></p>
 
                 <button type="submit" class="mt-4 h-9 w-full rounded-[10px] bg-accent px-4 font-medium text-white">Buat proker</button>
                 <ul x-show="tried && !canSubmit" x-cloak role="alert" class="mt-3 list-disc pl-5 text-[13px] text-bad">
@@ -184,10 +206,10 @@
     <section x-show="done" x-cloak class="mt-6 max-w-xl rounded-xl border border-line p-5">
         <h2 class="text-base font-semibold">Proker dibuat</h2>
         <p class="mt-2"><span class="font-medium" x-text="form.name"></span>, Hari-H <span x-text="fmtDate(form.hariH)"></span>.</p>
-        <p class="mt-1 text-muted tabular-nums" x-text="totals.divisi + ' divisi · ' + totals.koor + ' koordinator · ' + totals.anggota + ' anggota. Yang masih kosong bisa dilengkapi nanti.'"></p>
+        <p class="mt-1 text-muted tabular-nums" x-text="totals.divisi + ' divisi · ' + totals.koor + ' koordinator · ' + totals.anggota + ' anggota · ' + totals.jobdesc + ' jobdesc. Yang masih kosong bisa dilengkapi nanti.'"></p>
         <p class="mt-3 text-[13px] text-muted">Ini pratinjau: data belum disimpan.</p>
         <div class="mt-4 flex gap-2">
-            <a href="{{ route('dashboard') }}" class="inline-flex h-9 items-center rounded-[10px] bg-accent px-4 font-medium text-white">Ke ringkasan</a>
+            <a href="{{ route('proker.index') }}" class="inline-flex h-9 items-center rounded-[10px] bg-accent px-4 font-medium text-white">Ke daftar proker</a>
             <button type="button" @click="location.reload()" class="h-9 rounded-[10px] px-4 ring-1 ring-line hover:bg-black/5">Buat proker lain</button>
         </div>
     </section>

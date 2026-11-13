@@ -32,4 +32,48 @@ class DummyDataTest extends TestCase
             $this->assertSame([], array_diff($everyone, $names), "{$p['nama']}: unknown person");
         }
     }
+
+    public function test_every_division_of_a_proker_has_its_jobdesc(): void
+    {
+        foreach (DummyData::prokers() as $p) {
+            foreach ($p['divisions'] as $d) {
+                $this->assertNotEmpty($d['jobdesc'], "{$p['nama']} / {$d['name']}: no jobdesc");
+
+                foreach ($d['jobdesc'] as $j) {
+                    $this->assertNotSame('', trim($j['title']));
+                    $this->assertIsInt($j['h']);
+                    $this->assertIsBool($j['done']);
+                }
+            }
+        }
+    }
+
+    public function test_division_defaults_carry_the_same_jobdesc(): void
+    {
+        foreach (DummyData::divisionDefs() as $def) {
+            $this->assertSame(DummyData::jobdescFor($def['name']), $def['jobdesc']);
+        }
+    }
+
+    public function test_weekly_meetings_are_well_formed(): void
+    {
+        $techfest = DummyData::proker(1);
+
+        $this->assertCount(2, $techfest['rapat']);
+
+        foreach (DummyData::prokers() as $p) {
+            foreach ($p['rapat'] as $r) {
+                $this->assertContains($r['scope'], ['pleno', 'koor']);
+                $this->assertGreaterThanOrEqual(0, $r['day']);
+                $this->assertLessThanOrEqual(6, $r['day']);
+                $this->assertMatchesRegularExpression('/^\d{2}:\d{2}$/', $r['time']);
+            }
+        }
+    }
+
+    public function test_proker_lookup(): void
+    {
+        $this->assertSame('Techfest UC 2026', DummyData::proker(1)['nama']);
+        $this->assertNull(DummyData::proker(999));
+    }
 }

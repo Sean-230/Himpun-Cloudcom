@@ -11,10 +11,18 @@ Route::get('/dashboard', fn () => view('dashboard', [
     'prokers' => DummyData::prokers(),
 ]))->name('dashboard');
 
+Route::get('/proker', fn () => view('proker.index', [
+    'prokers' => array_values(array_filter(DummyData::prokers(), fn ($p) => $p['status'] === 'Berjalan')),
+]))->name('proker.index');
+
 Route::get('/proker/baru', fn () => view('proker.create', [
     'members' => DummyData::members(),
     'divisions' => DummyData::divisionDefs(),
 ]))->name('proker.create');
+
+Route::get('/proker/{id}', fn (int $id) => view('proker.show', [
+    'proker' => DummyData::proker($id) ?? abort(404),
+]))->whereNumber('id')->name('proker.show');
 
 // --- FITUR REQUEST ANTAR-KOORDINATOR ---
 Route::get('/request-divisi', function () {
