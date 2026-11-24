@@ -10,6 +10,9 @@
 
 It bridges the gap between chaotic spreadsheets and rigid corporate ERPs by modeling how student-led committees actually operate: faculty advisory guidance, executive leadership (HOD), standing operational divisions, dynamic work programs (Proker), event-specific oversight (Penanggung Jawab & Ketupel), open recruitment drives, and talent incubation pipelines.
 
+> [!NOTE]
+> **Status:** a clickable prototype. The screens (dashboards, proker list and detail, create form, division requests, role-based views) run on built-in dummy data (`app/Support/DummyData.php`). There is no real login and nothing is saved yet. Making it real is the current work, split between three people (see the Team & Work Split section below).
+
 ---
 
 ## 👥 How the Organization Works
@@ -173,22 +176,39 @@ flowchart RL
 
 ---
 
-## 📊 Team Feature Progress & Roadmap
+## 👨‍💻 Team & Work Split
 
-> [!NOTE]
-> **Current Status**: Project scaffolded on Laravel 13 & PHP 8.4. Core domain modeling and initial migrations are currently in planning.
+Himpun is built by three people. The remaining work is cut into **three parts of equal difficulty (about 25 points each)** so everyone works in parallel without touching the same files. Task lists, data contracts and the file-ownership map are in [`docs/pembagian-tugas.md`](docs/pembagian-tugas.md).
 
-| Module / Feature Area | Target Scope | Status | Progress |
-|---|---|:---:|:---:|
-| **Foundation & Architecture** | Laravel 13, SQLite/MySQL DB setup, Git repo & CI/CD pipeline | 🟡 In Progress | 40% |
-| **Authentication & RBAC** | Roles: Dosen Pembina, HOD (Pres, VP, Sec, Treas), PJ, Ketupel, Koordinator, Staff, Pulse Intern | ⚪ Planned | 0% |
-| **Organization & Department Core** | Multi-tenant orgs, standing division management, and jobdesc dictionaries | ⚪ Planned | 0% |
-| **Member Directory & Hierarchy** | Student profiles, NIM, line-of-reporting tree, contact directory | ⚪ Planned | 0% |
-| **Proker Lifecycle & Manager** | Recurring vs New vs Disbanded programs, milestone tracking, budget logs | ⚪ Planned | 0% |
-| **Proker Committee & Staffing** | Ketupel delegation, multi-proker member assignments, capacity balancing | ⚪ Planned | 0% |
-| **Oprec / Committee Vacancy** | Public application forms, vacancy postings, applicant review & induction | ⚪ Planned | 0% |
-| **Pulse Internship Tracker** | Intern task evaluation, attendance, mentor pairing & performance score | ⚪ Planned | 0% |
-| **Document & Inventory Hub** | LPJ (Laporan Pertanggungjawaban), Proposal uploads & Properties asset tracking | ⚪ Planned | 0% |
+| Part | Owner | Focus | Points |
+|---|---|---|:-:|
+| **1. Access & organisation** | **BB** | Real login and roles (no more "everyone is HOD"), organisation and people data, security hardening, bring the admin console into the main layout, Members and Divisions & jobdesc pages | 25 |
+| **2. Proker writing & delivery** | **Sean** | Proker models and migrations, save a proker with server-side rules, seeders and tests, timezone, CI/CD overhaul, README and docs, closing cleanup PR | 25 |
+| **3. Requests, reading & dashboards** | **Dzacky** | Division requests in the database, proker list and detail that save changes, HOD and PJ dashboards from the database, tests | 24 |
+
+**Working agreement (details in the doc):**
+
+1. Edit only the files you own. Need a change elsewhere? Open a tiny PR to `main` first.
+2. Never edit an old migration; add new ones (timestamp ranges per person).
+3. No repo-wide formatting or dependency updates. Only BB changes `composer.*` and `package*.json`.
+4. `DummyData.php` is frozen; Sean deletes it in the closing PR.
+5. Rebase on `main` daily, keep PRs small, and make `php artisan test` and `node --test "tests/js/*.test.mjs"` pass before opening one.
+
+---
+
+## 📊 Feature Status & Roadmap
+
+| Module / Feature Area | Status | Owner |
+|---|---|:-:|
+| **Foundation, CI/CD & deployment** (Laravel 13, GitHub Actions to CloudPanel) | 🟡 Works, needs hardening | Sean |
+| **Authentication & RBAC** | 🔴 Demo only: a session role switcher, and every visitor is HOD | BB |
+| **Organisation, members & divisions** | ⚪ Schema only, no pages yet | BB |
+| **Admin console** | 🟡 Standalone prototype, unprotected | BB |
+| **Proker create** (write path & data model) | 🟡 Prototype: rules only in JavaScript, nothing saved | Sean |
+| **Jobdesc targets & weekly meetings** | 🟡 Prototype: no tables yet | Sean (tables), Dzacky (screens) |
+| **Proker list, detail & dashboards** (HOD, PJ, Koordinator, Anggota views) | 🟡 Prototype on dummy data | Dzacky |
+| **Division requests** (koordinator to koordinator) | 🟡 Prototype: session only, not shared between users | Dzacky |
+| **Oprec, Pulse, Approvals, Budget, Documents & Inventory** | ⚪ Planned, not assigned yet | – |
 
 ---
 
@@ -224,9 +244,10 @@ erDiagram
 
 - **Backend**: [Laravel 13.x](https://laravel.com)
 - **Runtime**: PHP 8.4 (via [Laravel Herd](https://herd.laravel.com))
-- **Database**: SQLite (Local Dev) / MySQL (Cloud Production)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com) + Blade UI
-- **Deployment**: CloudPanel / Automated Git webhook & FTP deployment
+- **Database**: SQLite (local dev) / MySQL (production on CloudPanel)
+- **Frontend**: Blade, [Tailwind CSS v4](https://tailwindcss.com), [Alpine.js](https://alpinejs.dev), Vite, IBM Plex Sans
+- **Tests**: PHPUnit (PHP) and `node --test` (JavaScript logic)
+- **Deployment**: GitHub Actions builds and tests on every push to `main`, then ships to CloudPanel over SSH
 
 ---
 
@@ -260,11 +281,24 @@ php artisan key:generate
 touch database/database.sqlite
 php artisan migrate
 
-# 4. Start local development server
-php artisan serve
-# or run frontend hot-reload
-npm run dev
+# 4. Start the app (PHP server + Vite together)
+composer run dev
+# or separately: php artisan serve  and  npm run dev
 ```
+
+### 3. Try the roles (demo)
+
+Until real login exists, the top-right switcher chooses a role (HOD, PJ, Koordinator, Anggota) and who you are in it. Each role sees different pages: see `app/Support/Access.php` and `tests/Feature/RoleAccessTest.php`.
+
+### 4. Run the tests
+
+```bash
+php artisan test
+node --test "tests/js/*.test.mjs"
+vendor/bin/pint --test   # code style
+```
+
+> Never commit `.env` (it is git-ignored). It holds your keys and database password.
 
 ---
 
