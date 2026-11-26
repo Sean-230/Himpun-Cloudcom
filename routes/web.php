@@ -1,11 +1,16 @@
 <?php
 
+use App\Models\Division;
+use App\Models\Jobdesc;
+use App\Models\Membership;
+use App\Models\Organisation;
+use App\Models\Term;
 use App\Support\Access;
 use App\Support\DummyData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rule;
-
+use Illuminate\Support\Facades\Auth;
 Route::redirect('/', '/dashboard');
 
 // Demo identity switcher (stands in for login): pick a role, then who you are in it.
@@ -140,9 +145,122 @@ Route::patch('/request-divisi/{id}/status', function (Request $request, int $id)
     return redirect()->route('request.index')->with('success', 'Status permintaan diperbarui menjadi '.$newStatus.'.');
 })->middleware('role:koor')->name('request.status');
 
-// --- ADMIN CONSOLE (dari branch bb) ---
-Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', function () {
-        return view('admin.adminDasboard');
-    })->name('dashboard');
+// --- ADMIN CONSOLE & ORGANISATION MASTER DATA (BB) ---
+Route::middleware('role:hod')->group(function () {
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', fn () => view('admin.adminDasboard'))->name('dashboard');
+    });
+
+    Route::get('/anggota', function (Request $request) {
+        $search = trim((string) $request->query('q', ''));
+        $divisionFilter = (string) $request->query('division', '');
+
+        $term = Term::where('is_active', true)->first();
+        $divisions = Division::orderBy('name')->get();
+
+        $memberships = Membership::with(['user', 'division', 'jobdesc'])
+            ->when($term, fn ($q) => $q->where('term_id', $term->id))
+            ->when($search !== '', fn ($q) => $q->whereHas('user', fn ($u) => $u
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('nim', 'like', "%{$search}%")))
+            ->when($divisionFilter === 'hod', fn ($q) => $q->whereNull('division_id'))
+            ->when($divisionFilter !== '' && $divisionFilter !== 'hod', fn ($q) => $q->where('division_id', $divisionFilter))
+            ->get()
+            ->sortBy(fn ($m) => [$m->division_id ?? 0, $m->user->name])
+            ->values();
+
+        return view('members.MemberView', compact('memberships', 'divisions', 'term', 'search', 'divisionFilter'));
+    })->name('members.index');
+
+    Route::get('/divisi', function () {
+        $organisation = Organisation::first();
+        $divisions = Division::with('jobdescs')->withCount('memberships')->orderBy('name')->get();
+        $hodJobdescs = Jobdesc::whereNull('division_id')->get();
+
+        return view('divisions.DivisionsView', compact('organisation', 'divisions', 'hodJobdescs'));
+    })->name('divisions.index');
+
+    Route::post('/divisi', function (Request $request) {
+        $org = Organisation::firstOrFail();
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('divisions', 'name')->where('organisation_id', $org->id)],
+        ]);
+
+        Division::create([
+            'organisation_id' => $org->id,
+            'name' => $validated['name'],
+        ]);
+
+        return back()->with('success', 'Divisi berhasil ditambahkan.');
+    })->name('divisions.store');
+
+    Route::patch('/divisi/{division}', function (Request $request, Division $division) {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('divisions', 'name')->where('organisation_id', $division->organisation_id)->ignore($division->id)],
+        ]);
+
+        $division->update($validated);
+
+        return back()->with('success', 'Divisi berhasil diperbarui.');
+    })->name('divisions.update');
+
+    Route::post('/jobdesc', function (Request $request) {
+        $org = Organisation::firstOrFail();
+        $validated = $request->validate([
+            'division_id' => ['nullable', 'exists:divisions,id'],
+            'title' => ['required', 'string', 'max:100'],
+            'level' => ['required', Rule::in(['dosen', 'hod', 'koordinator', 'staff'])],
+            'description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        Jobdesc::create([
+            'organisation_id' => $org->id,
+            'division_id' => $validated['division_id'] ?: null,
+            'title' => $validated['title'],
+            'level' => $validated['level'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        return back()->with('success', 'Jobdesc berhasil ditambahkan.');
+    })->name('jobdescs.store');
+
+    Route::patch('/jobdesc/{jobdesc}', function (Request $request, Jobdesc $jobdesc) {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:100'],
+            'level' => ['required', Rule::in(['dosen', 'hod', 'koordinator', 'staff'])],
+            'description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $jobdesc->update($validated);
+
+        return back()->with('success', 'Jobdesc berhasil diperbarui.');
+    })->name('jobdescs.update');
 });
+
+// --- AUTHENTICATION ---
+Route::get('/login', fn () => view('auth.login'))->middleware('guest')->name('login');
+
+Route::post('/login', function (Request $request) {
+    $credentials = $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required', 'string'],
+    ]);
+
+    if (! auth::attempt($credentials, $request->boolean('remember'))) {
+        return back()->withErrors([
+            'email' => 'Email atau kata sandi tidak cocok.',
+        ])->onlyInput('email');
+    }
+
+    $request->session()->regenerate();
+
+    return redirect()->intended(route(Access::home(Access::me())));
+})->middleware('guest')->name('login.store');
+
+Route::post('/logout', function (Request $request) {
+    auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login');
+})->middleware('auth')->name('logout');

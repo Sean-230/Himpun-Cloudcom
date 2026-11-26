@@ -2,27 +2,50 @@
 
 namespace App\Support;
 
-/**
- * Who may see what. The "current user" is a demo identity kept in the session
- * (role + person) until real login exists.
- *
- * shortcut: session-based demo identity, replace with the authenticated user and policies.
- */
+use App\Models\Term;
+use Illuminate\Support\Facades\Auth;
+
 class Access
 {
-    /** Role and person used when nothing valid is stored in the session. */
     private const DEFAULT = ['hod', 'Michelle Wijaya'];
 
     public static function me(): array
     {
-        $role = session('demo_role');
-        $name = session('demo_user');
+       if (Auth::check()) {
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+            $term = Term::where('is_active', true)->first();
 
-        if (! isset(DummyData::ROLES[$role]) || ! in_array($name, DummyData::peopleFor($role), true)) {
-            [$role, $name] = self::DEFAULT;
+            $membership = $user->memberships()
+                ->with('jobdesc')
+                ->when($term, fn ($q) => $q->where('term_id', $term->id))
+                ->where('status', 'active')
+                ->first();
+            $role = match ($membership?->jobdesc?->level) {
+                'hod', 'dosen' => 'hod',
+                'koordinator' => 'koor',
+                default => 'anggota',
+            };
+
+            return [
+                'role' => $role,
+                'name' => $user->name,
+                'label' => DummyData::ROLES[$role] ?? 'Anggota',
+            ];
         }
 
-        return ['role' => $role, 'name' => $name, 'label' => DummyData::ROLES[$role]];
+        if (app()->isLocal()) {
+            $role = session('demo_role');
+            $name = session('demo_user');
+
+            if (! isset(DummyData::ROLES[$role]) || ! in_array($name, DummyData::peopleFor($role), true)) {
+                [$role, $name] = self::DEFAULT;
+            }
+
+            return ['role' => $role, 'name' => $name, 'label' => DummyData::ROLES[$role]];
+        }
+
+        return ['role' => 'guest', 'name' => 'Tamu', 'label' => 'Tamu'];
     }
 
     public static function is(string ...$roles): bool
