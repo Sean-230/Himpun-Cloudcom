@@ -139,7 +139,10 @@
                             </tr>
                             <tr x-show="open === {{ $p['id'] }}" x-cloak>
                                 <td colspan="5" class="pb-4 pl-[22px]">
-                                    <p class="mb-3 text-[13px] text-muted">PJ: {{ $p['pj'] }} · {{ $p['lokasi'] }}</p>
+                                    <p class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+                                        <span>PJ: {{ $p['pj'] }} · {{ $p['lokasi'] }}</span>
+                                        <a href="{{ route('proker.show', $p['id']) }}" class="font-medium text-accent hover:underline">Buka detail proker →</a>
+                                    </p>
                                     <div class="grid gap-3 sm:grid-cols-2">
                                         @foreach ($p['divisions'] as $div)
                                             <div class="rounded-lg border border-line p-3">

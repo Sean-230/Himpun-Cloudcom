@@ -40,10 +40,67 @@ class DummyData
         ],
     ];
 
+    /** What each division normally has to deliver: [title, days before Hari-H]. Negative = after Hari-H. */
+    private const JOBDESC = [
+        'Event' => [['Finalisasi konsep dan master rundown', 30], ['Brief pembicara dan talent', 21], ['Gladi bersih', 3], ['Koordinasi on-site hari-H', 0]],
+        'Inventory' => [['Booking venue dan izin penggunaan', 35], ['Daftar kebutuhan alat dan pengadaan', 21], ['Setup panggung dan sound', 1], ['Pembongkaran dan pengembalian alat', -2]],
+        'People Relation' => [['Surat izin kampus dan perizinan', 35], ['Undangan tamu dan pembicara', 21], ['Penyambutan tamu hari-H', 0]],
+        'Marketing' => [['Rancangan campaign dan target tiket', 30], ['Proposal sponsor terkirim', 28], ['Penjualan tiket dibuka', 21], ['Laporan sponsor dan tiket', -3]],
+        'PDD Dokum' => [['Rencana liputan dan shotlist', 14], ['Dokumentasi hari-H (foto dan video)', 0], ['Aftermovie rilis', -14]],
+        'PDD Design' => [['Key visual dan logo proker', 35], ['Poster, banner dan feeds', 28], ['Tiket, name tag dan backdrop', 10]],
+        'Tech' => [['Landing page dan registrasi', 28], ['Sistem QR check-in', 10], ['Uji coba sistem', 5], ['Rekap data peserta', -2]],
+    ];
+
+    /** Default jobdesc of one division as [['title' => ..., 'h' => ...], ...]. */
+    public static function jobdescFor(string $division): array
+    {
+        return array_map(fn ($j) => ['title' => $j[0], 'h' => $j[1]], self::JOBDESC[$division] ?? []);
+    }
+
+    /** The four views of the app. */
+    public const ROLES = ['hod' => 'HOD', 'pj' => 'PJ', 'koor' => 'Koordinator', 'anggota' => 'Anggota'];
+
+    /** Who the demo switcher can act as, per role. */
+    public static function peopleFor(string $role): array
+    {
+        $members = self::members();
+        $letters = fn (string $name) => array_filter(array_map(fn ($p) => self::roleIn($p, $name), self::prokers()));
+        $names = array_column($members, 'name');
+
+        return array_values(match ($role) {
+            'hod' => array_column(array_filter($members, fn ($m) => $m['hod']), 'name'),
+            'pj' => array_unique(array_column(self::prokers(), 'pj')),
+            'koor' => array_filter($names, fn ($n) => in_array('Ko', $letters($n), true)),
+            // Pure members only: someone who also coordinates somewhere would see more than an anggota.
+            'anggota' => array_filter($names, fn ($n) => ($r = $letters($n)) && ! array_diff($r, ['A'])),
+            default => [],
+        });
+    }
+
+    /** Numbers shown on lists and summaries for one proker. */
+    public static function stats(array $p): array
+    {
+        $today = new \DateTimeImmutable('today');
+        $hariH = new \DateTimeImmutable($p['hariH']);
+        $jobdesc = array_merge([], ...array_map(fn ($d) => $d['jobdesc'], $p['divisions']));
+        $sum = fn (string $key) => array_sum(array_map(fn ($d) => count($d[$key]), $p['divisions']));
+
+        return [
+            'divisi' => count($p['divisions']),
+            'koor' => $sum('koor'),
+            'anggota' => $sum('anggota'),
+            'total' => count($jobdesc),
+            'done' => count(array_filter($jobdesc, fn ($j) => $j['done'])),
+            'overdue' => count(array_filter($jobdesc, fn ($j) => ! $j['done'] && $hariH->modify(sprintf('%+d days', -$j['h'])) < $today)),
+            'daysLeft' => (int) $today->diff($hariH)->format('%r%a'),
+            'spent' => $p['realisasi'] ? (int) round($p['realisasi'] / $p['rencana'] * 100) : null,
+        ];
+    }
+
     /** Divisions a proker committee can switch on. */
     public static function divisionDefs(): array
     {
-        return [
+        $defs = [
             ['name' => 'Event', 'desc' => 'Rundown, konsep acara, pembicara dan talent'],
             ['name' => 'Inventory', 'desc' => 'Venue, logistik, peralatan dan panggung'],
             ['name' => 'People Relation', 'desc' => 'Humas, izin kampus dan tamu undangan'],
@@ -52,6 +109,8 @@ class DummyData
             ['name' => 'PDD Design', 'desc' => 'Logo, poster dan banner'],
             ['name' => 'Tech', 'desc' => 'Landing page, registrasi dan QR check-in'],
         ];
+
+        return array_map(fn ($d) => $d + ['jobdesc' => self::jobdescFor($d['name'])], $defs);
     }
 
     /** Everyone who can be put in a committee, with how many open prokers they already serve. */
@@ -90,7 +149,7 @@ class DummyData
 
         $d = fn (string $name, array $koor = [], array $anggota = []) => compact('name', 'koor', 'anggota');
 
-        return $prokers = [
+        $list = [
             [
                 'id' => 1, 'nama' => 'Techfest UC 2026', 'short' => 'Techfest UC', 'jenis' => 'Ulangi', 'status' => 'Berjalan',
                 'ketupel' => 'Rafael Santoso', 'pj' => 'Michelle Wijaya', 'hariH' => '2026-12-12', 'lokasi' => 'Auditorium UC',
@@ -161,6 +220,47 @@ class DummyData
                 'divisions' => [$d('Event'), $d('Inventory')],
             ],
         ];
+
+        // Weekly meetings per proker: day 0 = Minggu ... 6 = Sabtu.
+        $rapat = [
+            1 => [['pleno', 4, '19:00', 'Zoom'], ['koor', 1, '20:00', 'Ruang Himpunan']],
+            2 => [['pleno', 3, '19:00', 'Zoom']],
+            5 => [['pleno', 2, '20:00', 'Zoom']],
+        ];
+        $today = new \DateTimeImmutable('today');
+
+        foreach ($list as &$p) {
+            $hariH = new \DateTimeImmutable($p['hariH']);
+            foreach ($p['divisions'] as &$division) {
+                $division['jobdesc'] = array_map(function ($j) use ($p, $hariH, $today) {
+                    $target = $hariH->modify(sprintf('%+d days', -$j['h']));
+
+                    // Done once the target is a few days behind us (so some stay overdue), or the proker is over.
+                    return $j + ['done' => $p['status'] === 'Selesai' || $target < $today->modify('-3 days')];
+                }, self::jobdescFor($division['name']));
+            }
+            unset($division);
+
+            $p['rapat'] = array_map(
+                fn ($r, $i) => ['id' => $p['id'] * 10 + $i, 'scope' => $r[0], 'day' => $r[1], 'time' => $r[2], 'place' => $r[3]],
+                $rapat[$p['id']] ?? [],
+                array_keys($rapat[$p['id']] ?? []),
+            );
+        }
+        unset($p);
+
+        return $prokers = $list;
+    }
+
+    public static function proker(int $id): ?array
+    {
+        foreach (self::prokers() as $p) {
+            if ($p['id'] === $id) {
+                return $p;
+            }
+        }
+
+        return null;
     }
 
     /** K, PJ, Ko or A: the person's highest role in one proker, or null. */
@@ -192,5 +292,64 @@ class DummyData
             self::prokers(),
             fn ($p) => $p['status'] !== 'Selesai' && self::roleIn($p, $name) !== null,
         ));
+    }
+
+    /** Dummy data untuk permintaan/rikues antar-koordinator divisi. */
+    public static function divisionRequests(): array
+    {
+        return [
+            [
+                'id' => 101,
+                'proker' => 'Techfest UC 2026',
+                'dari_divisi' => 'PDD Dokum',
+                'dari_koor' => 'Valerie Susanto',
+                'ke_divisi' => 'Inventory',
+                'ke_koor' => 'Bryan Santoso',
+                'judul' => 'Peminjaman 2 Tripod & Kabel Roll 15m untuk Booth Photobooth',
+                'catatan' => 'Dibutuhkan H-1 sore untuk instalasi lighting area depan Auditorium UC.',
+                'tenggat' => '2026-12-11',
+                'status' => 'Menunggu', // Menunggu, Diproses, Selesai, Ditolak
+                'waktu' => '2 jam lalu',
+            ],
+            [
+                'id' => 102,
+                'proker' => 'Techfest UC 2026',
+                'dari_divisi' => 'Event',
+                'dari_koor' => 'Felicia Hartono',
+                'ke_divisi' => 'PDD Dokum',
+                'ke_koor' => 'Valerie Susanto',
+                'judul' => 'Dokumentasi Video Teaser & Bumper Pembukaan Acara',
+                'catatan' => 'Durasi maksimal 45 detik, format landscape 16:9 untuk layar utama.',
+                'tenggat' => '2026-12-05',
+                'status' => 'Diproses',
+                'waktu' => '1 hari lalu',
+            ],
+            [
+                'id' => 103,
+                'proker' => 'Techfest UC 2026',
+                'dari_divisi' => 'Inventory',
+                'dari_koor' => 'Bryan Santoso',
+                'ke_divisi' => 'PDD Design',
+                'ke_koor' => 'Clarissa Putri',
+                'judul' => 'Desain Signboard Arah Ruangan & Label Meja Registrasi',
+                'catatan' => 'Ukuran A3 siap cetak (PDF CMYK), total 6 titik lokasi.',
+                'tenggat' => '2026-12-08',
+                'status' => 'Menunggu',
+                'waktu' => '3 jam lalu',
+            ],
+            [
+                'id' => 104,
+                'proker' => 'Webinar Series: Career Talk',
+                'dari_divisi' => 'Event',
+                'dari_koor' => 'Angeline Chandra',
+                'ke_divisi' => 'Tech',
+                'ke_koor' => 'Andreas Gunawan',
+                'judul' => 'Setup Link Zoom Webinar & Form Absensi QR Otomatis',
+                'catatan' => 'Kapasitas 300 peserta dengan fitur Q&A aktif.',
+                'tenggat' => '2026-11-26',
+                'status' => 'Selesai',
+                'waktu' => '3 hari lalu',
+            ],
+        ];
     }
 }

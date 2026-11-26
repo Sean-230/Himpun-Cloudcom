@@ -10,7 +10,7 @@ const members = [
     { id: 4, name: 'Timothy Lee', divisi: 'Tech', hod: false, roles: 2 },
     { id: 5, name: 'Felicia Hartono', divisi: 'Event', hod: false, roles: 0 },
 ];
-const defs = [{ name: 'Event', desc: '' }, { name: 'Tech', desc: '' }];
+const defs = [{ name: 'Event', desc: '', jobdesc: [{ title: 'Master rundown', h: 30 }] }, { name: 'Tech', desc: '' }];
 
 // A valid form to start from; each test breaks one thing.
 function valid() {
@@ -36,7 +36,7 @@ test('a valid form can be submitted, with nobody assigned', () => {
 });
 
 test('koordinator and anggota are optional', () => {
-    assert.deepEqual(valid().totals, { divisi: 1, koor: 0, anggota: 0 });
+    assert.deepEqual(valid().totals, { divisi: 1, koor: 0, anggota: 0, jobdesc: 1 });
 });
 
 test('name, Hari-H and at least one division are required', () => {
@@ -184,4 +184,50 @@ test('errors stay hidden until the first submit attempt', () => {
     f.submit();
     assert.ok(f.err('name'));
     assert.equal(f.done, false);
+});
+
+test('each division starts with its default jobdesc, copied per form', () => {
+    const a = valid();
+    const b = valid();
+    assert.deepEqual(event(a).jobdesc.map((j) => [j.title, j.h]), [['Master rundown', 30]]);
+    event(a).jobdesc[0].title = 'Ubah';
+    assert.equal(event(b).jobdesc[0].title, 'Master rundown');
+    assert.deepEqual(tech(a).jobdesc, []);
+});
+
+test('jobdesc can be added and removed', () => {
+    const f = valid();
+    f.addJobdesc(event(f));
+    assert.equal(event(f).jobdesc.length, 2);
+    f.removeJobdesc(event(f), event(f).jobdesc[0].id);
+    assert.equal(event(f).jobdesc.length, 1);
+});
+
+test('a blank jobdesc title is an error, but only in a division that is switched on', () => {
+    const f = valid();
+    f.addJobdesc(tech(f));
+    assert.equal(f.errors.jobdesc, undefined);
+    f.addJobdesc(event(f));
+    assert.match(f.errors.jobdesc, /judulnya masih kosong/);
+    event(f).jobdesc[1].title = 'Gladi bersih';
+    assert.equal(f.errors.jobdesc, undefined);
+});
+
+test('a jobdesc target must be a whole number', () => {
+    const f = valid();
+    event(f).jobdesc[0].h = '';
+    assert.match(f.errors.jobdesc, /angka/);
+});
+
+test('the target date counts back from Hari-H', () => {
+    const f = valid();
+    f.form.hariH = '2027-03-18';
+    assert.equal(f.targetDate(30), '16 Feb');
+    assert.equal(f.targetDate(0), '18 Mar');
+    assert.equal(f.targetDate(-2), '20 Mar');
+    assert.equal(f.targetLabel(30), 'H-30');
+    assert.equal(f.targetLabel(0), 'Hari-H');
+    assert.equal(f.targetLabel(-2), 'H+2');
+    f.form.hariH = '';
+    assert.equal(f.targetDate(30), '');
 });

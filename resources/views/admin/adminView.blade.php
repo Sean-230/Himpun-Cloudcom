@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Admin Console') — Himpun SU IMT UC</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-[#F6FAFD] text-[#0A1931] antialiased selection:bg-[#B3CFE5] selection:text-[#0A1931]"
       x-data="{
