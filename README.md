@@ -178,21 +178,50 @@ flowchart RL
 
 ## 👨‍💻 Team & Work Split
 
-Himpun is built by three people. The remaining work is cut into **three parts of equal difficulty (about 25 points each)** so everyone works in parallel without touching the same files. Task lists, data contracts and the file-ownership map are in [`docs/pembagian-tugas.md`](docs/pembagian-tugas.md).
+Himpun is built by three people. After BB's first milestone merged (`7ed1137`), the **remaining work** was rebalanced to **18 points each** so everyone works in parallel with zero file conflicts. Full contracts, migration ranges, and the file-ownership map are in [`docs/pembagian-tugas.md`](docs/pembagian-tugas.md).
 
-| Part | Owner | Focus | Points |
-|---|---|---|:-:|
-| **1. Access & organisation** | **BB** | Real login and roles (no more "everyone is HOD"), organisation and people data, security hardening, bring the admin console into the main layout, Members and Divisions & jobdesc pages | 25 |
-| **2. Proker writing & delivery** | **Sean** | Proker models and migrations, save a proker with server-side rules, seeders and tests, timezone, CI/CD overhaul, README and docs, closing cleanup PR | 25 |
-| **3. Requests, reading & dashboards** | **Dzacky** | Division requests in the database, proker list and detail that save changes, HOD and PJ dashboards from the database, tests | 24 |
+### 1. BB — Access, Organisation, `/admin` & Dashboards *(18 pts remaining)*
+- **Already merged on `main`:**
+  - [x] Organisation, Term, Division, Membership & Jobdesc models + `OrganisationSeeder` (42 members)
+  - [x] Login & Logout (`/login`, `/logout`)
+  - [x] Members Directory (`/anggota`) and Divisions & Jobdesc CRUD (`/divisi`, `/jobdesc`)
+  - [x] Admin Console moved into `layouts.app` with `role:hod`
+- **Remaining features:**
+  - [ ] **Auth & Per-Proker Roles (3 pts):** Protect routes with `auth` (redirect guests to `/login`), resolve `pj`/`koor`/`ketupel` from `proker_assignments`, unify `dosen`/`isHod()`
+  - [ ] **Account Menu & Local-Only Switcher (2 pts):** Sign In / Sign Out in header, return 404 on `/peran` outside `local`, show DB pending request badge
+  - [ ] **Security & Postgres Fixes (3 pts):** Rate-limit `/login`, `SESSION_SECURE_COOKIE`, HSTS/CSP headers, case-insensitive `/anggota` search, org-scoped edits, delete dead `adminView.blade.php`
+  - [ ] **Auth & Master-Data Tests (3 pts):** `ActsAsRole` helper, fix the 17 broken PHPUnit tests on `main`, add tests for login, `/anggota`, `/divisi`, `/jobdesc`, `/admin`
+  - [ ] **Live Admin Console (3 pts):** Wire `/admin` Ketupel/PJ assignment, division jobdesc monitor, and timeline to real DB queries
+  - [ ] **Live HOD & PJ Dashboards (4 pts):** Move `/dashboard` off `DummyData`, fix empty-DB divide-by-zero & past Hari-H labels, add dashboard tests
+
+### 2. Sean — Proker Creation, Supabase & Delivery *(13 pts remaining)*
+- **Done on `Sean` branch:**
+  - [x] **Proker Models, Migrations & Status Enum (5 pts):** `Proker`, `ProkerDivision`, `ProkerAssignment`, `ProkerDivisionJobdesc`, `ProkerMeeting`, `ProkerStatus` enum, `prokers.location`, `UNIQUE(proker_id, membership_id)`, `UNIQUE(proker_id, name)` & Postgres FK indexes
+- **Remaining features:**
+  - [ ] **Create Proker Backend (4 pts):** `POST /proker` controller & Form Request in a DB transaction (1 person 1 role, Ketupel ≠ PJ, valid jobdescs, Hari-H ≥ today, repeat link)
+  - [ ] **Create Proker Form & Seeder (3 pts):** Feed real DB members & past prokers into `/proker/baru`, show server 422 errors, redirect to saved proker, build `ProkerSeeder`
+  - [ ] **Create-Flow Tests & WIB Timezone (2 pts):** PHP feature tests for every rule, keep `proker-form.test.mjs` green, set `Asia/Jakarta` timezone with `Carbon::setTestNow`
+  - [ ] **Supabase PostgreSQL & CI/CD Overhaul (3 pts):** Configure Supabase Session Pooler + private schema/RLS lock-down; fix `deploy.yaml` (`postgres:16`, `npm ci`, JS tests + Pint, `contents: read`, SSH key, zero-downtime swap)
+  - [ ] **Docs & Final Cleanup (1 pt):** `docs/DEPLOY.md`, keep `README.md` current, delete `welcome.blade.php`, and closing PR deleting `DummyData.php`
+
+### 3. Dzacky — Division Requests, Proker List & Proker Detail *(18 pts remaining)*
+- **Drafted on `dzaky` branch:**
+  - [x] `division_requests` migration, `DivisionRequest` model, policy & Form Requests
+- **Remaining features:**
+  - [ ] **Division Requests Backend (3 pts):** Wire controller & routes to DB, enforce sender/receiver rules & valid status order, add `DivisionRequest::pendingCountFor()`
+  - [ ] **Division Requests UI Fixes (2 pts):** Fix XSS by replacing `'{{ old(...) }}'` with `@js(...)` in `request/index.blade.php`, drop unused variables, keyboard-friendly tabs
+  - [ ] **Division Requests Tests & Seeder (2 pts):** Feature tests for every rule + `RequestSeeder`
+  - [ ] **Live Proker List & `ProkerAccess` (3 pts):** Move proker visibility logic to DB (`App\Support\ProkerAccess`) and wire `/proker` using `ProkerStatus` enum
+  - [ ] **Live Proker Detail (5 pts):** Move `/proker/{id}` off `DummyData` and save ticked/added/removed jobdescs & weekly meetings (HOD only, 403 for others)
+  - [ ] **Proker List & Detail Tests (3 pts):** PHP feature tests for `/proker`, `/proker/{id}` & write guards + keep `proker-detail.test.mjs` green
 
 **Working agreement (details in the doc):**
 
 1. Edit only the files you own. Need a change elsewhere? Open a tiny PR to `main` first.
-2. Never edit an old migration; add new ones (timestamp ranges per person).
+2. Never edit an old migration; add new ones (timestamp ranges: BB `2026_12_01_1*`, Sean `2026_12_01_2*`, Dzacky `2026_12_01_3*`).
 3. No repo-wide formatting or dependency updates. Only BB changes `composer.*` and `package*.json`.
-4. `DummyData.php` is frozen; Sean deletes it in the closing PR.
-5. Rebase on `main` daily, keep PRs small, and make `php artisan test` and `node --test "tests/js/*.test.mjs"` pass before opening one.
+4. `DummyData.php` is frozen; Sean deletes it in the closing PR (2.6).
+5. Rebase on `main` daily, keep PRs small, and make `php artisan test`, `node --test "tests/js/*.test.mjs"`, and `vendor/bin/pint --test <your files>` pass before opening one.
 
 ---
 
@@ -200,43 +229,91 @@ Himpun is built by three people. The remaining work is cut into **three parts of
 
 | Module / Feature Area | Status | Owner |
 |---|---|:-:|
-| **Foundation, CI/CD & deployment** (Laravel 13, GitHub Actions to CloudPanel) | 🟡 Works, needs hardening | Sean |
-| **Authentication & RBAC** | 🔴 Demo only: a session role switcher, and every visitor is HOD | BB |
-| **Organisation, members & divisions** | ⚪ Schema only, no pages yet | BB |
-| **Admin console** | 🟡 Standalone prototype, unprotected | BB |
-| **Proker create** (write path & data model) | 🟡 Prototype: rules only in JavaScript, nothing saved | Sean |
-| **Jobdesc targets & weekly meetings** | 🟡 Prototype: no tables yet | Sean (tables), Dzacky (screens) |
-| **Proker list, detail & dashboards** (HOD, PJ, Koordinator, Anggota views) | 🟡 Prototype on dummy data | Dzacky |
-| **Division requests** (koordinator to koordinator) | 🟡 Prototype: session only, not shared between users | Dzacky |
-| **Oprec, Pulse, Approvals, Budget, Documents & Inventory** | ⚪ Planned, not assigned yet | – |
+| **Foundation, Supabase Postgres & CI/CD** (Laravel 13, GitHub Actions to CloudPanel) | 🟡 Works on MySQL/SQLite; moving to Supabase & hardening CI | Sean |
+| **Authentication & RBAC** (`/login`, `/logout`, `Access::me()`) | 🟡 Login exists; needs `auth` guards, per-proker roles, local-only `/peran`, security headers & test fixes | BB |
+| **Organisation, members & divisions** (`/anggota`, `/divisi`, `/jobdesc`, `OrganisationSeeder`) | 🟢 Merged on `main`; needs Postgres case-insensitive search, org-scoping & tests | BB |
+| **Admin console** (`/admin`) | 🟡 Integrated in `layouts.app` with `role:hod`, still hardcoded JS data | BB |
+| **Dashboards** (HOD & PJ views) | 🟡 Prototype on dummy data | BB |
+| **Proker models, migrations & `ProkerStatus`** | 🟢 Built on `Sean` branch (ready for PR 2.1) | Sean |
+| **Proker create** (`POST /proker`, form wiring, `ProkerSeeder`) | 🟡 Prototype: rules only in JavaScript, nothing saved | Sean |
+| **Jobdesc targets & weekly meetings** | 🟡 Tables & models built on `Sean`; screens still on dummy data | Sean (tables), Dzacky (screens) |
+| **Proker list & detail** (`/proker`, `/proker/{id}`) | 🟡 Prototype on dummy data | Dzacky |
+| **Division requests** (koordinator to koordinator) | 🟡 Schema/model/policy drafted on `dzaky`; UI still on session | Dzacky |
+| **Oprec, Pulse, Approvals, Budget, Documents & Tasks** | ⚪ Schema migrated, features not assigned yet | – |
 
 ---
 
-## 🏛️ Domain Architecture
+## 🗄️ Database Structure
+
+Himpun has **19 domain tables** (+ 7 Laravel system tables) migrated on `Sean` (17 on `main` + 2 added in PR 2.1), plus **1 planned table** (`division_requests` in progress on `dzaky`).
 
 ```mermaid
 erDiagram
-    DOSEN_PEMBINA ||--o{ ORGANISATION : "guides & advises"
-    ORGANISATION ||--|| HOD : "governed by (Pres, VP, Sec, Treas)"
-    ORGANISATION ||--o{ DIVISION : "has standing"
-    DIVISION ||--o{ ROLE_JOBDESC : defines
-    ROLE_JOBDESC ||--o{ MEMBER : assigns
-    MEMBER ||--o{ PULSE_INTERN : mentors
+    organisations ||--o{ terms : has
+    organisations ||--o{ divisions : has
+    organisations ||--o{ jobdescs : defines
+    organisations ||--o{ memberships : has
+    organisations ||--o{ prokers : runs
 
-    ORGANISATION ||--o{ PROKER : owns
-    PROKER ||--|| PENANGGUNG_JAWAB : "supervised by"
-    PROKER ||--|| MEMBER : "led by (Ketupel)"
-    PROKER ||--o{ PROKER_DIVISION : configures
-    PROKER_DIVISION ||--o{ PROKER_COMMITTEE_MEMBER : assigns
-    MEMBER ||--o{ PROKER_COMMITTEE_MEMBER : "participates as"
+    users ||--o{ memberships : holds
+    terms ||--o{ memberships : scopes
+    divisions ||--o{ jobdescs : owns
+    divisions ||--o{ memberships : places
+    jobdescs ||--o{ memberships : assigns
+    memberships ||--o| interns : "Pulse intern"
 
-    PROKER ||--o{ OPREC_VACANCY : "publishes (optional)"
-    OPREC_VACANCY ||--o{ OPREC_APPLICANT : receives
-    OPREC_APPLICANT }o--|| PROKER_COMMITTEE_MEMBER : "inducted into"
+    terms ||--o{ prokers : contains
+    prokers ||--o| prokers : "previous_proker_id"
+    prokers ||--o{ proker_divisions : configures
+    prokers ||--o{ proker_assignments : staffs
+    proker_divisions ||--o{ proker_assignments : groups
+    memberships ||--o{ proker_assignments : "multi-proker"
+    proker_assignments ||--o{ proker_assignments : "reports_to_id"
+    proker_divisions ||--o{ proker_division_jobdescs : tracks
+    prokers ||--o{ proker_meetings : schedules
 
-    PROKER ||--o{ TASK : tracks
-    TASK ||--o{ PROKER_COMMITTEE_MEMBER : "assigned to"
+    prokers ||--o{ budget_entries : tracks
+    prokers ||--o{ documents : stores
+    prokers ||--o{ tasks : has
+    tasks ||--o{ task_assignees : assigned
+    proker_assignments ||--o{ task_assignees : works_on
+    prokers ||--o{ oprec_vacancies : opens
+    oprec_vacancies ||--o{ oprec_applicants : receives
+
+    prokers ||--o{ division_requests : "in progress (Dzacky)"
 ```
+
+### ✅ Already Added (Migrated)
+
+| Table | Key Columns & Constraints | Model Status | Owner (Jobdesc) |
+|---|---|---|---|
+| **`users`** | `id`, `name`, `email` (unique), `nim` (unique, nullable), `phone` (nullable), `password` | ✅ `User` | **BB** *(done; auth guards/tests 1.1–1.4)* |
+| **`organisations`** | `id`, `name`, `slug` (unique), `type` (`himpunan`/`bem`/`mentoring`/`bpm`/`ukm`), `faculty` | ✅ `Organisation` | **BB** *(done; org-scoping 1.3)* |
+| **`terms`** | `id`, `organisation_id` (FK), `name`, `starts_on`, `ends_on`, `is_active` | ✅ `Term` | **BB** *(done)* |
+| **`divisions`** | `id`, `organisation_id` (FK), `name` · `UNIQUE(organisation_id, name)` | ✅ `Division` | **BB** *(done; tests 1.3–1.4)* |
+| **`jobdescs`** | `id`, `organisation_id` (FK), `division_id` (nullable FK), `title`, `description`, `level` (`dosen`/`hod`/`koordinator`/`staff`) | ✅ `Jobdesc` | **BB** *(done; tests 1.3–1.4)* |
+| **`memberships`** | `id`, `user_id`, `organisation_id`, `term_id`, `division_id`?, `jobdesc_id`?, `status` · `UNIQUE(user_id, organisation_id, term_id)` | ✅ `Membership` | **BB** *(done; Postgres search 1.3)* |
+| **`interns`** | `id`, `membership_id` (unique FK), `mentor_membership_id` (FK), `cohort`, `score`, `status` | ⚪ No model yet | Unassigned *(Pulse)* |
+| **`prokers`** | `id`, `organisation_id`, `term_id`, `previous_proker_id` (self-FK), `name`, `type` (`repeat`/`new`), `status` (`ProkerStatus`), `description`, `starts_on`, `ends_on`, `location` | ✅ `Proker` *(on `Sean`)* | **Sean** (2.1–2.4) |
+| **`proker_divisions`** | `id`, `proker_id` (FK), `division_id` (nullable FK), `name` · `UNIQUE(proker_id, name)` | ✅ `ProkerDivision` *(on `Sean`)* | **Sean** (2.1–2.4) |
+| **`proker_assignments`** | `id`, `proker_id` (FK), `membership_id` (FK), `proker_division_id` (nullable FK), `role`, `reports_to_id` (self-FK) · `UNIQUE(proker_id, membership_id)` | ✅ `ProkerAssignment` *(on `Sean`)* | **Sean** (2.1–2.4) |
+| **`proker_division_jobdescs`** | `id`, `proker_division_id` (FK cascade), `title` (120), `days_before` (int, negative = after Hari-H), `done` (bool) | ✅ `ProkerDivisionJobdesc` *(on `Sean`)* | **Sean** (2.1) · *UI by Dzacky (3.5)* |
+| **`proker_meetings`** | `id`, `proker_id` (FK cascade), `scope` (`pleno`/`koor`/`division`), `proker_division_id` (nullable FK), `weekday` (0–6), `starts_at` (time), `place` | ✅ `ProkerMeeting` *(on `Sean`)* | **Sean** (2.1) · *UI by Dzacky (3.5)* |
+| **`budget_entries`** | `id`, `proker_id`, `proker_division_id`?, `kind` (`planned`/`actual`), `type` (`income`/`expense`), `category`, `description`, `amount`, `entry_date`, `receipt_path`, `recorded_by` | ⚪ No model yet | Unassigned *(Budget)* |
+| **`oprec_vacancies`** | `id`, `proker_id`, `proker_division_id`?, `title`, `quota`, `requirements`, `opens_at`, `closes_at`, `status` | ⚪ No model yet | Unassigned *(Oprec)* |
+| **`oprec_applicants`** | `id`, `oprec_vacancy_id`, `user_id`, `status`, `notes`, `proker_assignment_id`? · `UNIQUE(oprec_vacancy_id, user_id)` | ⚪ No model yet | Unassigned *(Oprec)* |
+| **`tasks`** | `id`, `proker_id`, `proker_division_id`?, `created_by`?, `title`, `description`, `due_on`, `priority`, `status` | ⚪ No model yet | Unassigned *(Tasks)* |
+| **`task_assignees`** | `task_id` (FK), `proker_assignment_id` (FK) · `PRIMARY(task_id, proker_assignment_id)` | ⚪ Pivot table | Unassigned *(Tasks)* |
+| **`approvals`** | `id`, `approvable` (morphs), `step`, `required_role`, `status`, `acted_by`?, `acted_at`, `note` | ⚪ No model yet | Unassigned *(Approvals)* |
+| **`documents`** | `id`, `proker_id`, `type` (`proposal`/`lpj`/`other`), `title`, `path`, `status`, `uploaded_by` | ⚪ No model yet | Unassigned *(Documents)* |
+
+> **Laravel system tables (already migrated):** `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, `migrations`.
+
+### ⏳ Not Merged to `main` Yet
+
+| Table | Planned Columns & Purpose | Status | Owner (Jobdesc) |
+|---|---|---|---|
+| **`division_requests`** *(new table)* | `id`, `proker_id`, `from_proker_division_id`, `to_proker_division_id`, `from_user_id`, `to_user_id`, `title` (150), `note`, `due_on`, `status` (`Menunggu`/`Diproses`/`Selesai`/`Ditolak`) | 🟡 Drafted on `dzaky` branch | **Dzacky** (3.1–3.3) |
 
 ---
 
@@ -244,7 +321,7 @@ erDiagram
 
 - **Backend**: [Laravel 13.x](https://laravel.com)
 - **Runtime**: PHP 8.4 (via [Laravel Herd](https://herd.laravel.com))
-- **Database**: SQLite (local dev) / MySQL (production on CloudPanel)
+- **Database**: SQLite (local dev & unit tests) / **Supabase (PostgreSQL)** (production)
 - **Frontend**: Blade, [Tailwind CSS v4](https://tailwindcss.com), [Alpine.js](https://alpinejs.dev), Vite, IBM Plex Sans
 - **Tests**: PHPUnit (PHP) and `node --test` (JavaScript logic)
 - **Deployment**: GitHub Actions builds and tests on every push to `main`, then ships to CloudPanel over SSH

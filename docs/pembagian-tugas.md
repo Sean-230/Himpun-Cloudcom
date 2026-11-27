@@ -1,16 +1,17 @@
-# Work split: Sean, BB and Dzacky
+# Work split: BB, Sean and Dzacky (Rebalanced — 2026-11-27)
 
-Himpun is a clickable prototype that reads everything from `DummyData`. The job now is to make it real: login, a database, and the server-side rules. The work is cut into three parts of **equal difficulty (about 25 points each)** so nobody waits on anyone and **every file has exactly one owner**.
+Himpun is moving from a clickable `DummyData` prototype to a real Laravel 13 + **Supabase (PostgreSQL)** app with real login, database persistence, and automated CI/CD.
 
-Points are relative effort (1 = small, 5 = a solid chunk of work), not hours. They were estimated from the audit, not measured.
+Because **BB** already merged the foundation of Part 1 on `main` (`7ed1137`: organisation/people models, `OrganisationSeeder`, `/login` & `/logout`, `/anggota`, `/divisi`, and `/admin` layout), the **remaining work** has been rebalanced to **18 points each** so all three finish together with **zero overlapping files**.
+
+Points are relative effort (1 = small, 5 = a solid chunk of work), not hours.
 
 | | Part 1: **BB** | Part 2: **Sean** | Part 3: **Dzacky** |
 |---|---|---|---|
-| Theme | Access, organisation data, admin | Writing prokers, delivery | Requests, reading prokers, dashboards |
-| Points | **25** | **25** | **24** |
-| Why this person | Built the admin console | Owns the proker form, CI and deploy | Built the division-request feature |
-
-If someone falls behind, these can move to another person with no file conflicts: BB's 1.9 (new pages), Sean's 2.8 (docs and cleanup), and Dzacky's 3.7 (dashboards).
+| Theme | Auth polish, security, `/admin` DB, dashboards | Proker models & write path, Supabase, CI/CD & cleanup | Division requests, proker list & detail persistence |
+| Already merged / drafted | ~17 pts merged on `main` (`7ed1137`) | Prototype form + CI baseline | ~3 pts drafted on `origin/dzaky` (`e847c4d`) |
+| **Remaining points** | **18** | **18** | **18** |
+| Why this person | Owns identity, security, layout, `/admin` & dashboards | Owns proker schema/create, Postgres/Supabase & delivery | Owns division requests, `ProkerAccess` & proker detail |
 
 ## Golden rules (all three)
 
@@ -18,118 +19,122 @@ If someone falls behind, these can move to another person with no file conflicts
 2. **Never edit an old migration.** Anything that already ran on the server will not run again. Always add a new file.
 3. **Do not reformat, rename, or move files you do not own.** No repo-wide `pint`, `composer update`, or `npm update`. Use `vendor/bin/pint <your files>`.
 4. **Rebase daily:** `git fetch origin && git rebase origin/main`. Small PRs (under about 400 lines), one topic per PR.
-5. **`DummyData.php` is frozen.** Nobody edits or deletes it. Build new code next to it and move your own pages over. Sean deletes it in the closing PR.
+5. **`DummyData.php` is frozen.** Nobody edits or deletes it. Build new code next to it and move your own pages over. Sean deletes it in the closing PR (2.6).
 6. **Lockfiles and `package.json` / `composer.json` are BB's.** Need a package: ask BB.
 
-## Step 0: preparation (do once, before anyone starts)
+## Step 0: preparation (do once on `main` before new PRs)
 
-One PR to `main`, then all three branch from it. This is what makes the rest conflict-free.
+One small PR to `main`, then all three rebase on it. This fixes the current merge/test conflict bottleneck.
 
 | # | What | Why |
 |---|---|---|
-| 0.1 | Split `routes/web.php` into a thin loader plus `routes/auth.php` (BB), `routes/proker_write.php` (Sean), `routes/proker_read.php` (Dzacky), `routes/request.php` (Dzacky) | One shared route file is the biggest conflict source |
+| 0.1 | Split `routes/web.php` into a thin loader plus `routes/auth.php` (BB), `routes/proker_write.php` (Sean), `routes/proker_read.php` (Dzacky), `routes/request.php` (Dzacky) | One 266-line shared route file blocks `route:cache` and causes conflicts on every PR |
 | 0.2 | Move Alpine components to `resources/js/components/` and make `app.js` register them automatically (`import.meta.glob`) | A new component no longer edits `app.js` |
-| 0.3 | Move the proker functions out of `Access.php` into `App\Support\ProkerAccess` (`canSee`, `listFor`, `roleLabel`, `divisionsCoordinated`). `Access.php` keeps identity only | Two owners, two files |
-| 0.4 | Split `RoleAccessTest` and `ExampleTest` per part, and add `tests/Concerns/ActsAsRole.php` (`$this->as($role, $name)`) | Tests stop overwriting each other, and when BB changes how identity works only this helper changes |
-| 0.5 | `DatabaseSeeder` calls three empty seeders: `OrganisationSeeder` (BB), `ProkerSeeder` (Sean), `RequestSeeder` (Dzacky) | Nobody edits `DatabaseSeeder` again |
-| 0.6 | Run Pint once over the whole repo and add `.github/CODEOWNERS` from the ownership map | No format noise later, and GitHub asks the owner to review |
+| 0.3 | Move proker visibility helpers out of `Access.php` into `App\Support\ProkerAccess` (`canSee`, `listFor`, `roleLabel`, `divisionsCoordinated`). `Access.php` keeps identity only | Two owners, two files |
+| 0.4 | Add `tests/Concerns/ActsAsRole.php` (`$this->as($role, $name)`) and split feature tests per part | Unbreaks the 17 failing PHPUnit tests and stops test-file collisions |
+| 0.5 | `DatabaseSeeder` calls three seeders: `OrganisationSeeder` (BB), `ProkerSeeder` (Sean), `RequestSeeder` (Dzacky) | Nobody edits `DatabaseSeeder` again |
+| 0.6 | Run Pint over the 10 failing files on `main` and add `.github/CODEOWNERS` from the ownership map | Gets CI style check green and auto-assigns PR reviewers |
 
-## Part 1: BB, access, organisation data, admin (25 points)
+---
 
-Goal: close the biggest audit finding (anyone is automatically HOD) and own the people and organisation data.
+## Part 1: BB — Access, Organisation, `/admin` & Dashboards (18 remaining pts)
 
-| # | Task | Pts | Done when |
-|---|---|:-:|---|
-| 1.1 | **Organisation and people data.** Models `Organisation`, `Term`, `Division`, `Membership`, and `OrganisationSeeder` turning the 42-person roster in `DummyData::ROSTER` into `users` + `memberships` | 3 | `php artisan db:seed` creates 42 users, 6 divisions, 1 term. **Merge this PR first** |
-| 1.2 | **Real login and logout** with Laravel's built-in session auth (no new package): login page, `routes/auth.php`, `resources/views/auth/*` | 3 | Guests are sent to login |
-| 1.3 | **Role from the account.** `Access::me()` reads `Auth::user()`; guests get the lowest access, never HOD. Global role (HOD) from the user, per-proker role from `proker_assignments` | 4 | No code path falls back to HOD |
-| 1.4 | **Restrict `/peran` and `/admin`.** The role switcher only works when `APP_ENV=local`; `/admin` gets `role:hod` | 1 | In production `/peran` is a 404 and `/admin` asks for login |
-| 1.5 | **Layout header and menu:** account menu (sign in/out), switcher only locally, menu links for the new pages | 1 | |
-| 1.6 | **Security hardening:** `SESSION_SECURE_COOKIE=true`, HSTS and a basic CSP header, and written steps for the SSL certificate on CloudPanel | 2 | `curl -I` shows the headers, certificate verifies |
-| 1.7 | **Access tests** and the `ActsAsRole` helper (create a real user per role) | 2 | Guest, role and switcher tests pass |
-| 1.8 | **Bring the admin console into the main layout** (it has its own colours and layout) | 3 | `/admin` uses `layouts.app` and the shared components |
-| 1.9 | **Two new pages:** Members directory and Divisions & jobdesc (master data; the menu items are placeholders today) | 6 | List, search, and create/edit divisions and jobdesc |
-| | **Total** | **25** | |
+**Already merged on `main` (`7ed1137`):**
+- [x] Models `Organisation`, `Term`, `Division`, `Membership`, `Jobdesc` + `OrganisationSeeder` (42 members, 6 divisions, 1 term)
+- [x] Login & Logout (`/login`, `/logout`)
+- [x] Members Directory (`/anggota`) and Divisions & Jobdesc CRUD (`/divisi`, `/jobdesc`)
+- [x] Admin Console moved into `layouts.app` with `role:hod`
 
-BB must keep stable: `Access::me()` still returns `['role','name','label']` (adding `'id'` is fine), `Access::is()` and `Access::home()` keep their signatures, and the middleware `role:` keeps working.
+**Remaining features:**
+- [ ] **1.1 Auth & Per-Proker Roles (3 pts):** Protect app routes with `auth` so guests redirect to `/login`; resolve per-proker roles (`pj`, `koor`, `ketupel`) from `proker_assignments` (after Sean's 2.1); unify `dosen`/`isHod()`; memoize `Access::me()` per request.
+- [ ] **1.2 Account Menu & Local-Only Switcher (2 pts):** Return 404 on `/peran` outside `local`; hide demo switcher & skip `$roleOptions` outside `local`; add Sign In / Sign Out in `layouts/app.blade.php`; wire pending request badge via `DivisionRequest::pendingCountFor($me)`.
+- [ ] **1.3 Security & Postgres Fixes (3 pts):** Add `throttle:5,1` on `POST /login`; set `SESSION_SECURE_COOKIE=true`, HSTS & basic CSP headers; make `/anggota` search case-insensitive on Supabase Postgres (`LOWER(...)`); scope `/divisi` & `/jobdesc` PATCH to user's organisation; delete dead `adminView.blade.php`.
+- [ ] **1.4 Auth & Master-Data Tests (3 pts):** Add `ActsAsRole` helper, fix the 17 failing PHPUnit tests on `main`, fix `AccessTest:L82`, delete `tests/Unit/ExampleTest.php`, and add feature tests for `/login`, `/logout`, `/anggota`, `/divisi`, `/jobdesc`, `/admin`.
+- [ ] **1.5 Live Admin Console (3 pts):** Replace hardcoded Alpine arrays in `adminDasboard.blade.php` (Ketupel/PJ assignment, division jobdesc monitor, timeline) with real Eloquent queries and save endpoints (after Sean's 2.1).
+- [ ] **1.6 Live HOD & PJ Dashboards (4 pts · *rebalanced from Dzacky*):** Move `dashboard.blade.php` & `dashboard-pj.blade.php` off `DummyData`; fix division-by-zero & null crashes on empty DB; fix `"-N hari"` / `"hari ini"` bug on past Hari-H; use `ProkerStatus` enum instead of copied maps; add dashboard tests.
 
-## Part 2: Sean, writing prokers and delivery (25 points)
+BB must keep stable: `Access::me()` returns `['role', 'name', 'label']` (adding `'id'` is fine), `Access::is()` and `Access::home()` keep their signatures, and the `role:` middleware keeps working.
 
-Goal: make creating a proker real, and make shipping reliable.
+---
 
-| # | Task | Pts | Done when |
-|---|---|:-:|---|
-| 2.1 | **Models and migrations.** `Proker`, `ProkerDivision`, `ProkerAssignment` for the existing tables, plus two new tables (contracts below) and a `ProkerStatus` enum with the labels the UI uses | 5 | `migrate` is clean on MySQL and the CI migrate passes. **Merge this PR second** (Dzacky needs it) |
-| 2.2 | **Save a proker on the server.** `POST /proker` with a Form Request: one person one role, Ketupel is not PJ, valid jobdesc, Hari-H not in the past. These rules live only in JavaScript today | 5 | Every violation returns 422 in a test |
-| 2.3 | **Create form** shows server errors and redirects to the saved proker | 2 | |
-| 2.4 | **`ProkerSeeder`** from the dummy prokers | 2 | Seeded prokers look like the dummy ones |
-| 2.5 | **Tests:** create-flow PHP tests and the `proker-form` JS tests | 3 | Both suites green |
-| 2.6 | **Timezone** `Asia/Jakarta` in `config/app.php`, with tests using `Carbon::setTestNow` | 1 | |
-| 2.7 | **CI/CD overhaul** in `.github/workflows`: `npm ci`, run the JS tests and `pint --test`, `permissions: contents: read`, SSH key login, a deploy that never leaves the site without `vendor`, and tests that really use SQLite | 4 | A push to `main` does not break the site during deploy |
-| 2.8 | **README, `docs/DEPLOY.md`, delete dead files** (`welcome.blade.php`) | 2 | README matches reality |
-| 2.9 | **Closing PR:** delete `DummyData.php` and its test, run Pint over the repo | 1 | |
-| | **Total** | **25** | |
+## Part 2: Sean — Proker Creation, Supabase & Delivery (18 remaining pts)
 
-## Part 3: Dzacky, requests, reading prokers, dashboards (24 points)
+**Remaining features:**
+- [x] **2.1 Proker Models, Migrations & `ProkerStatus` Enum (5 pts · *built on `Sean` branch*):** Models `Proker`, `ProkerDivision`, `ProkerAssignment`, `ProkerDivisionJobdesc`, `ProkerMeeting`; new migrations `2026_12_01_2*` for `proker_division_jobdescs`, `proker_meetings`, nullable `prokers.location`, `UNIQUE(proker_id, membership_id)` on `proker_assignments`, `UNIQUE(proker_id, name)` on `proker_divisions` & Postgres FK indexes; `App\Enums\ProkerStatus` with labels & pill colours.
+- [ ] **2.2 Create Proker Backend (4 pts):** `POST /proker` controller + `StoreProkerRequest` inside a DB transaction enforcing: 1 person 1 role per proker, Ketupel ≠ PJ, valid jobdesc titles & integer targets, Hari-H ≥ today, `repeat` requires `previous_proker_id` (422 on every violation).
+- [ ] **2.3 Create Proker Form & `ProkerSeeder` (3 pts):** Feed real DB members & past prokers into `create.blade.php`, show server 422 errors, redirect to saved proker; write `ProkerSeeder` seeding the 7 baseline prokers (with divisions, assignments, jobdescs, meetings).
+- [ ] **2.4 Create-Flow Tests & `Asia/Jakarta` Timezone (2 pts):** Feature tests for `POST /proker` (happy path + every 422 rule), keep `tests/js/proker-form.test.mjs` green, set `'timezone' => 'Asia/Jakarta'` in `config/app.php` with `Carbon::setTestNow` tests.
+- [ ] **2.5 Supabase PostgreSQL & CI/CD Overhaul (3 pts):** Configure Postgres (`config/database.php` `DB_SCHEMA` / private schema or RLS lock-down, Session Pooler port 5432, `DB_SSLMODE=require`); overhaul `.github/workflows/deploy.yaml` (`postgres:16` service + `pgsql` ext, `npm ci`, JS tests + `pint --test`, `permissions: contents: read`, SSH key auth, zero-downtime `vendor`/`build` swap).
+- [ ] **2.6 Docs & Final Cleanup PR (1 pt):** Keep `README.md` accurate, write `docs/DEPLOY.md` (CloudPanel + Supabase setup & SSL), delete `welcome.blade.php`, and (last, after BB & Dzacky finish) delete `DummyData.php` + `DummyDataTest.php` and run Pint across the repo.
 
-Goal: finish the division-request feature and move every read-only screen onto the database.
+---
 
-| # | Task | Pts | Done when |
-|---|---|:-:|---|
-| 3.1 | **Requests in the database.** Table `division_requests` (contract below), model, controller, policy | 4 | A request from one coordinator shows up for the other |
-| 3.2 | **Request rules:** only the receiver answers, valid status order, divisions validated, ids from the database (not `now()->timestamp`) | 2 | A test per rule |
-| 3.3 | **Request page fixes:** replace `old()` inside JS strings with `@js(...)`, keyboard-friendly tabs, menu badge counted from the database | 2 | No `'{{ old(...) }}'` inside `x-data` |
-| 3.4 | **Request tests and `RequestSeeder`** | 2 | |
-| 3.5 | **`ProkerAccess` from the database and the proker list** (`/proker`) | 3 | List shows only what each role may see |
-| 3.6 | **Proker detail saves changes:** tick jobdesc, add/remove jobdesc and meetings (HOD only) with a "Saved" message | 5 | Reload keeps the change, PJ and coordinators get 403 |
-| 3.7 | **Dashboards (HOD and PJ) from the database,** fix the "-N hari" label for a Hari-H that has passed, and remove the copied month and status-colour maps in those views | 4 | No dashboard calls `DummyData` |
-| 3.8 | **Tests** for the list, detail and dashboards (PHP and the `proker-detail` JS tests) | 2 | Both suites green |
-| | **Total** | **24** | |
+## Part 3: Dzacky — Division Requests, Proker List & Proker Detail (18 remaining pts)
 
-Dzacky starts with 3.1 to 3.4 (they need nothing from the others, use factories) and begins 3.5 once Sean's 2.1 PR is merged.
+**Drafted on `origin/dzaky` (`e847c4d`):**
+- [x] `division_requests` migration (`2026_12_01_300000`), `DivisionRequest` model, `DivisionRequestPolicy`, `StoreDivisionRequest`, `UpdateDivisionRequestStatusRequest`
+
+**Remaining features:**
+- [ ] **3.1 Division Requests Backend (3 pts):** Wire `DivisionRequestController` + `routes/request.php` to DB; enforce sender coordinates `from_division`, receiver-only answers, valid status transitions (`Menunggu → Diproses/Ditolak`, `Diproses → Selesai`), validated divisions, DB IDs; expose `DivisionRequest::pendingCountFor(array $me): int`.
+- [ ] **3.2 Division Requests UI & XSS Fixes (2 pts):** Replace `'{{ old(...) }}'` and raw Blade interpolation inside Alpine attributes (`request/index.blade.php:L32-34,L84`) with `@js(...)`; remove unused `$aktifProkers`; keyboard-friendly tabs.
+- [ ] **3.3 Division Requests Tests & `RequestSeeder` (2 pts):** Feature tests covering every rule (sender/receiver/status/403s) + `RequestSeeder`.
+- [ ] **3.4 Live Proker List & `ProkerAccess` (3 pts):** Move `canSee`, `listFor`, `roleLabel`, `divisionsCoordinated` onto Eloquent in `App\Support\ProkerAccess`; move `proker/index.blade.php` off `DummyData` using `ProkerStatus` enum (after Sean's 2.1).
+- [ ] **3.5 Live Proker Detail (5 pts):** Move `proker/show.blade.php` off `DummyData`; add endpoints to tick/add/delete `ProkerDivisionJobdesc` and add/delete `ProkerMeeting` (HOD only, 403 for PJ/Koordinator/Anggota) with a "Saved" indicator.
+- [ ] **3.6 Proker List & Detail Tests (3 pts):** Feature tests for `/proker`, `/proker/{id}`, jobdesc/meeting CRUD & 403 guards; keep `tests/js/proker-detail.test.mjs` green.
+
+Dzacky finishes 3.1–3.3 first (independent), then starts 3.4–3.6 right after Sean's 2.1 merges.
+
+---
 
 ## Contracts between parts
 
-**Sean provides (PR 2.1).** Table and column names are fixed here so Dzacky can code against them:
+**Sean provides (PR 2.1).** Table, column, and enum names are fixed here so BB and Dzacky can code against them:
 
-| Table / model | Columns |
+| Table / model | Columns / API |
 |---|---|
-| `prokers`, `proker_divisions`, `proker_assignments` (existing) | Models `Proker`, `ProkerDivision`, `ProkerAssignment` with `Proker::divisions()`, `Proker::assignments()`, `ProkerDivision::jobdescs()` |
-| `proker_division_jobdescs` (new, `ProkerDivisionJobdesc`) | `proker_division_id` (FK, cascade), `title` (120), `days_before` (int, negative = after Hari-H), `done` (bool, default false) |
-| `proker_meetings` (new, `ProkerMeeting`) | `proker_id` (FK, cascade), `scope` (`pleno`, `koor` or `division`), `proker_division_id` (nullable FK, set when scope is `division`), `weekday` (0 to 6, 0 = Sunday), `starts_at` (time), `place` (nullable) |
-| `ProkerStatus` enum | `Usulan`, `Pembentukan panitia`, `Berjalan`, `LPJ`, `Selesai`. Today the migration comment lists different words than the UI uses; the enum settles it |
+| `prokers` (existing + `location`) | Model `Proker` with `divisions()`, `assignments()`, `meetings()`, `previousProker()`, `organisation()`, `term()`, cast `status` → `ProkerStatus` |
+| `proker_divisions` (existing) | Model `ProkerDivision` with `proker()`, `division()`, `assignments()`, `jobdescs()` |
+| `proker_assignments` (existing + `UNIQUE(proker_id, membership_id)`) | Model `ProkerAssignment` with `proker()`, `membership()`, `prokerDivision()`, `reportsTo()` |
+| `proker_division_jobdescs` (new, `ProkerDivisionJobdesc`) | `proker_division_id` (FK cascade), `title` (120), `days_before` (int, negative = after Hari-H), `done` (bool default `false`) |
+| `proker_meetings` (new, `ProkerMeeting`) | `proker_id` (FK cascade), `scope` (`pleno`, `koor`, `division`), `proker_division_id` (nullable FK), `weekday` (`0`–`6`, `0` = Sunday), `starts_at` (time), `place` (nullable) |
+| `App\Enums\ProkerStatus` | Backed string enum: `Usulan`, `Pembentukan panitia`, `Berjalan`, `LPJ`, `Selesai`, with `label(): string` and `pillClass(): string` |
 
-**Dzacky provides.** `division_requests`: `proker_id` (FK), `from_proker_division_id` and `to_proker_division_id` (FKs), `from_user_id` and `to_user_id` (FKs to `users`), `title` (150), `note` (nullable), `due_on` (date), `status` (`Menunggu`, `Diproses`, `Selesai`, `Ditolak`).
+**Dzacky provides.** `division_requests`: `proker_id` (FK), `from_proker_division_id` & `to_proker_division_id` (FKs), `from_user_id` & `to_user_id` (FKs to `users`), `title` (150), `note` (nullable), `due_on` (date), `status` (`Menunggu`, `Diproses`, `Selesai`, `Ditolak`), plus `DivisionRequest::pendingCountFor(array $me): int` for the sidebar badge.
 
-**BB provides.** Seeded users, memberships and standing divisions (1.1), `Access::me()` (1.3), and the `ActsAsRole` test helper (1.7). Until 1.3 lands, `ActsAsRole` simply sets the demo session, so Sean's and Dzacky's tests keep passing.
+**BB provides.** Seeded users, memberships and standing divisions (`OrganisationSeeder`), `Access::me()` (1.1), and the `ActsAsRole` test helper (1.4).
+
+---
 
 ## File ownership map
 
 | Path | Owner |
 |---|---|
-| `app/Support/Access.php`, `app/Http/Middleware/**`, `app/Models/User.php`, `AppServiceProvider.php`, `bootstrap/**`, `config/auth.php`, `config/session.php` | **BB** |
-| `app/Models/{Organisation,Term,Division,Membership}.php`, `OrganisationSeeder` | **BB** |
-| `routes/auth.php` (includes `/` and `/admin`) | **BB** |
-| `resources/views/layouts/**`, `admin/**`, `errors/**`, `auth/**`, new members and divisions pages, `resources/css/app.css`, `resources/js/components/role-switch.js` | **BB** |
+| `app/Support/Access.php`, `app/Http/Middleware/**`, `app/Models/{User,Organisation,Term,Division,Membership,Jobdesc}.php`, `app/Providers/AppServiceProvider.php`, `bootstrap/**`, `config/{auth,session}.php` | **BB** |
+| `database/seeders/OrganisationSeeder.php`, auth/members/divisions/admin/dashboard controllers & Form Requests | **BB** |
+| `routes/auth.php` (`/`, `/login`, `/logout`, `/peran`, `/dashboard`, `/admin`, `/anggota`, `/divisi`, `/jobdesc`) | **BB** |
+| `resources/views/{layouts,admin,auth,errors,members,divisions}/**`, `resources/views/dashboard*.blade.php`, `resources/css/app.css`, `resources/js/components/role-switch.js` | **BB** |
 | `composer.json`, `composer.lock`, `package.json`, `package-lock.json`, `vite.config.js`, `.env.example` | **BB** |
-| `app/Models/Proker*.php`, `app/Enums/ProkerStatus.php`, `ProkerSeeder`, proker store controller and Form Request | **Sean** |
+| `app/Models/Proker*.php`, `app/Enums/ProkerStatus.php`, `database/seeders/ProkerSeeder.php`, proker-store controller & `StoreProkerRequest` | **Sean** |
 | `routes/proker_write.php`, `resources/views/proker/create.blade.php`, `resources/js/components/proker-form.js` | **Sean** |
-| `config/app.php` (timezone only), `.github/**`, `README.md`, `docs/**`, `phpunit.xml`, `welcome.blade.php` | **Sean** |
-| `app/Support/ProkerAccess.php`, `app/Models/DivisionRequest.php`, request and proker-read controllers and Form Requests, `RequestSeeder` | **Dzacky** |
+| `config/app.php` (timezone), `config/database.php` (Supabase `pgsql` schema/pooler), `.github/**`, `README.md`, `docs/**`, `phpunit.xml`, `resources/views/welcome.blade.php` | **Sean** |
+| `app/Support/ProkerAccess.php`, `app/Models/DivisionRequest.php`, `app/Policies/DivisionRequestPolicy.php`, request & proker-read/detail controllers & Form Requests, `database/seeders/RequestSeeder.php` | **Dzacky** |
 | `routes/proker_read.php`, `routes/request.php` | **Dzacky** |
-| `resources/views/proker/index.blade.php`, `proker/show.blade.php`, `dashboard*.blade.php`, `request/**`, `resources/js/components/proker-detail.js` | **Dzacky** |
-| `app/Support/DummyData.php`, `DatabaseSeeder.php`, `resources/js/app.js`, `resources/js/dates.js`, `resources/views/components/*`, `routes/web.php`, `Controller.php` | **frozen** |
+| `resources/views/proker/index.blade.php`, `resources/views/proker/show.blade.php`, `resources/views/request/**`, `resources/js/components/proker-detail.js` | **Dzacky** |
+| `app/Support/DummyData.php`, `DatabaseSeeder.php`, `resources/js/app.js`, `resources/js/dates.js`, `resources/views/components/*`, `routes/web.php`, `Controller.php` | **frozen** *(Sean deletes `DummyData` in 2.6)* |
 | `database/migrations/` | new files only. Timestamp ranges: BB `2026_12_01_1*`, Sean `2026_12_01_2*`, Dzacky `2026_12_01_3*` |
-| `tests/` | per feature: access and auth BB, proker create and its JS tests Sean, proker read, dashboards, requests and their JS tests Dzacky |
+| `tests/` | BB: `ActsAsRole`, access/auth/members/divisions/admin/dashboards · Sean: proker-create + `proker-form.test.mjs` · Dzacky: requests, proker list/detail + `proker-detail.test.mjs` |
 
-## Order
+---
 
-1. **Step 0** merged to `main`. All three branch from it.
-2. **BB 1.1** (organisation and user seed) merged first, within about two days.
-3. **Sean 2.1** (models and migrations) merged second, within about two days. Dzacky works on 3.1 to 3.4 meanwhile.
-4. Everyone works in parallel. They never touch the same files.
-5. **BB 1.2, 1.3 and 1.7 (real login) are merged last** among the feature PRs, because they change how identity is read in every test. Since tests go through `ActsAsRole`, only that helper adjusts.
-6. **Sean 2.9** closing PR: delete `DummyData`, run Pint on the whole repo.
+## Merge order
+
+1. **Step 0** merged to `main` (routes split, `DatabaseSeeder`, Pint fix, `ActsAsRole` scaffold). All three rebase on `main`.
+2. **BB 1.4** (unbreak the 17 failing PHPUnit tests on `main`) + **Sean 2.1** (Proker models, migrations, `ProkerStatus`) merge first. Dzacky finishes 3.1–3.3 in parallel.
+3. Everyone works in parallel with zero file collisions:
+   - BB: 1.1, 1.2, 1.3, 1.5, 1.6
+   - Sean: 2.2, 2.3, 2.4, 2.5
+   - Dzacky: 3.4, 3.5, 3.6
+4. **Sean 2.6** closing PR: delete `DummyData.php` + `DummyDataTest.php`, run Pint across the repo, verify `DEPLOY.md` & `README.md`.
 
 ## Definition of done (every PR)
 
