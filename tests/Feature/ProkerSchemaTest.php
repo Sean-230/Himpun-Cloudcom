@@ -257,4 +257,79 @@ class ProkerSchemaTest extends TestCase
         $this->assertFalse(ProkerStatus::Selesai->isOpen());
         $this->assertNotEmpty(ProkerStatus::Berjalan->pillClass());
     }
+
+    public function test_dosen_pembina_term_divisions_pre_registration_and_soft_delete_work(): void
+    {
+        [$org, $term2526] = $this->seedBaseContext();
+
+        $dosen = User::factory()->create([
+            'name' => 'Dr. Ir. Budi Santoso',
+            'email' => 'budi.santoso@ciputra.ac.id',
+        ]);
+        $org->update(['advisor_user_id' => $dosen->id]);
+
+        $this->assertTrue($dosen->isAdvisor());
+        $this->assertTrue($org->fresh()->advisor->is($dosen));
+
+        // Second period 26/27 can have its own division with the same name "Tech" without colliding with 25/26.
+        $term2627 = Term::create([
+            'organisation_id' => $org->id,
+            'name' => '2026/2027',
+            'starts_on' => '2026-08-01',
+            'ends_on' => '2027-07-31',
+            'is_active' => false,
+        ]);
+
+        $div2526 = Division::where('name', 'Tech')->firstOrFail();
+        $div2526->update(['term_id' => $term2526->id]);
+
+        $div2627 = Division::create([
+            'organisation_id' => $org->id,
+            'term_id' => $term2627->id,
+            'name' => 'Tech',
+        ]);
+
+        $this->assertNotSame($div2526->id, $div2627->id);
+        $this->assertCount(1, $term2627->divisions);
+        $this->assertCount(6, Jobdesc::DEFAULT_HOD_TITLES);
+
+        // Pre-registered student created by Dosen Pembina (no password yet).
+        $student = User::create([
+            'name' => 'Mahasiswa Baru',
+            'nim' => '0706012610001',
+            'email' => 'maba@student.ciputra.ac.id',
+            'password' => null,
+            'activated_at' => null,
+        ]);
+
+        $this->assertFalse($student->isActivated());
+
+        // Student activates account via /register.
+        $student->update([
+            'password' => 'rahasia123',
+            'activated_at' => now(),
+        ]);
+        $this->assertTrue($student->fresh()->isActivated());
+
+        // Dosen Pembina resets password (back to unactivated).
+        $student->update([
+            'password' => null,
+            'activated_at' => null,
+        ]);
+        $this->assertFalse($student->fresh()->isActivated());
+
+        // Smart Delete (soft delete) hides user from normal queries while keeping historical records intact.
+        $membership = Membership::create([
+            'user_id' => $student->id,
+            'organisation_id' => $org->id,
+            'term_id' => $term2627->id,
+            'division_id' => $div2627->id,
+            'status' => 'active',
+        ]);
+
+        $student->delete();
+
+        $this->assertSoftDeleted('users', ['id' => $student->id]);
+        $this->assertDatabaseHas('memberships', ['id' => $membership->id]);
+    }
 }

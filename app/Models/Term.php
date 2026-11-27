@@ -37,4 +37,19 @@ class Term extends Model
     {
         return $this->hasMany(Membership::class);
     }
+
+    public function divisions(): HasMany
+    {
+        return $this->hasMany(Division::class);
+    }
+
+    public function jobdescs(): HasMany
+    {
+        return $this->hasMany(Jobdesc::class);
+    }
+
+    public function prokers(): HasMany
+    {
+        return $this->hasMany(Proker::class);
+    }
 }

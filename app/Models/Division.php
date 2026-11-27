@@ -13,12 +13,18 @@ class Division extends Model
 
     protected $fillable = [
         'organisation_id',
+        'term_id',
         'name',
     ];
 
     public function organisation(): BelongsTo
     {
         return $this->belongsTo(Organisation::class);
+    }
+
+    public function term(): BelongsTo
+    {
+        return $this->belongsTo(Term::class);
     }
 
     public function jobdescs(): HasMany

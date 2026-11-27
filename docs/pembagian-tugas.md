@@ -8,10 +8,10 @@ Points are relative effort (1 = small, 5 = a solid chunk of work), not hours.
 
 | | Part 1: **BB** | Part 2: **Sean** | Part 3: **Dzacky** |
 |---|---|---|---|
-| Theme | Auth polish, security, `/admin` DB, dashboards | Proker models & write path, Supabase, CI/CD & cleanup | Division requests, proker list & detail persistence |
-| Already merged / drafted | ~17 pts merged on `main` (`7ed1137`) | Prototype form + CI baseline | ~3 pts drafted on `origin/dzaky` (`e847c4d`) |
-| **Remaining points** | **18** | **18** | **18** |
-| Why this person | Owns identity, security, layout, `/admin` & dashboards | Owns proker schema/create, Postgres/Supabase & delivery | Owns division requests, `ProkerAccess` & proker detail |
+| Theme | Auth, `/register`, Dosen Pembina 2-Tab Dashboard & HOD/PJ Dashboards | Database overhaul, Proker creation, Supabase, CI/CD & AI | Division requests, proker list & detail, student proker summary |
+| Already merged / built | ~17 pts merged on `main` (`7ed1137`) | 6 pts built on `Sean` (2.1 schema + Supabase DB live) | ~3 pts drafted on `origin/dzaky` (`e847c4d`) |
+| **Remaining points** | **20** | **16** *(22 total incl. 2.1)* | **20** |
+| Why this person | Owns identity, `/register`, terms/divisions/members & dashboards | Owns proker schema/create, Supabase/CI & AI | Owns division requests, `ProkerAccess` & proker detail |
 
 ## Golden rules (all three)
 
@@ -37,7 +37,7 @@ One small PR to `main`, then all three rebase on it. This fixes the current merg
 
 ---
 
-## Part 1: BB — Access, Organisation, `/admin` & Dashboards (18 remaining pts)
+## Part 1: BB — Auth, `/register`, Dosen Pembina Dashboard & Dashboards (20 remaining pts)
 
 **Already merged on `main` (`7ed1137`):**
 - [x] Models `Organisation`, `Term`, `Division`, `Membership`, `Jobdesc` + `OrganisationSeeder` (42 members, 6 divisions, 1 term)
@@ -46,30 +46,37 @@ One small PR to `main`, then all three rebase on it. This fixes the current merg
 - [x] Admin Console moved into `layouts.app` with `role:hod`
 
 **Remaining features:**
-- [ ] **1.1 Auth & Per-Proker Roles (3 pts):** Protect app routes with `auth` so guests redirect to `/login`; resolve per-proker roles (`pj`, `koor`, `ketupel`) from `proker_assignments` (after Sean's 2.1); unify `dosen`/`isHod()`; memoize `Access::me()` per request.
-- [ ] **1.2 Account Menu & Local-Only Switcher (2 pts):** Return 404 on `/peran` outside `local`; hide demo switcher & skip `$roleOptions` outside `local`; add Sign In / Sign Out in `layouts/app.blade.php`; wire pending request badge via `DivisionRequest::pendingCountFor($me)`.
-- [ ] **1.3 Security & Postgres Fixes (3 pts):** Add `throttle:5,1` on `POST /login`; set `SESSION_SECURE_COOKIE=true`, HSTS & basic CSP headers; make `/anggota` search case-insensitive on Supabase Postgres (`LOWER(...)`); scope `/divisi` & `/jobdesc` PATCH to user's organisation; delete dead `adminView.blade.php`.
-- [ ] **1.4 Auth & Master-Data Tests (3 pts):** Add `ActsAsRole` helper, fix the 17 failing PHPUnit tests on `main`, fix `AccessTest:L82`, delete `tests/Unit/ExampleTest.php`, and add feature tests for `/login`, `/logout`, `/anggota`, `/divisi`, `/jobdesc`, `/admin`.
-- [ ] **1.5 Live Admin Console (3 pts):** Replace hardcoded Alpine arrays in `adminDasboard.blade.php` (Ketupel/PJ assignment, division jobdesc monitor, timeline) with real Eloquent queries and save endpoints (after Sean's 2.1).
-- [ ] **1.6 Live HOD & PJ Dashboards (4 pts · *rebalanced from Dzacky*):** Move `dashboard.blade.php` & `dashboard-pj.blade.php` off `DummyData`; fix division-by-zero & null crashes on empty DB; fix `"-N hari"` / `"hari ini"` bug on past Hari-H; use `ProkerStatus` enum instead of copied maps; add dashboard tests.
+- [ ] **1.1 Auth, `/register` Activation & Roles (4 pts):** Protect app routes with `auth` so guests redirect to `/login`; build `/register` (`Nama`, `NIM`, `Email`, `Password`, `Confirm Password`) matching pre-registered `users` (`password = null`, `activated_at = null`); separate `role = 'dosen'` (via `organisations.advisor_user_id`) from `hod`; resolve per-proker roles (`pj`, `koor`, `ketupel`) from `proker_assignments`; memoize `Access::me()`.
+- [ ] **1.2 Account Menu, Local Switcher & Security (3 pts):** Sign In / Sign Out in `layouts/app.blade.php`; return 404 on `/peran` & hide switcher outside `local`; wire pending request badge via `DivisionRequest::pendingCountFor($me)`; add `throttle:5,1` on `/login`, `SESSION_SECURE_COOKIE`, HSTS/CSP headers; make `/anggota` search case-insensitive on Postgres (`LOWER(...)`); scope `/divisi` & `/jobdesc` PATCH to active term/org; delete dead `adminView.blade.php`.
+- [ ] **1.3 Auth & Master-Data Tests (3 pts):** Add `ActsAsRole` helper, fix the 17 failing PHPUnit tests on `main`, fix `AccessTest:L82`, delete `tests/Unit/ExampleTest.php`, and add feature tests for `/login`, `/register`, `/anggota`, `/divisi`, `/jobdesc`, and Dosen Pembina guards.
+- [ ] **1.4 Dosen Pembina 2-Tab Dashboard (6 pts):**
+  - *Tab 1 (Periode `25/26`, `26/27`, `27/28`, ...):* Create new periods with default **6 flexible HOD slots** (`Jobdesc::DEFAULT_HOD_TITLES`: President, Vice President, Bendahara, Asisten Bendahara, Secretary, Asisten Secretary) + optional copy of previous period's divisions; freely add/rename/remove divisions & adjust member counts per division; add new students (`Nama`, `NIM`, `Email` → pre-registered) or carry over returning students from past periods (reuses existing `User` account).
+  - *Tab 2 (Daftar Mahasiswa):* Master student directory across periods with search/filters; **Detail / Rangkuman Mahasiswa** (memberships, jobdescs, active & past prokers + roles via `ProkerAccess::summaryForUser()`); **Reset Password** (clears `password` + `activated_at` + sessions so student re-registers at `/register`); **Smart Delete** (hard delete if no proker history; soft delete via `users.deleted_at` + deactivate memberships if has proker history).
+- [ ] **1.5 Live HOD & PJ Dashboards (4 pts · *rebalanced from Dzacky*):** Move `dashboard.blade.php` & `dashboard-pj.blade.php` off `DummyData`; fix division-by-zero & null crashes on empty DB; fix `"-N hari"` / `"hari ini"` bug on past Hari-H; use `ProkerStatus` enum; fold/retire duplicate static `/admin`; add dashboard tests.
 
-BB must keep stable: `Access::me()` returns `['role', 'name', 'label']` (adding `'id'` is fine), `Access::is()` and `Access::home()` keep their signatures, and the `role:` middleware keeps working.
+BB must keep stable: `Access::me()` returns `['role', 'name', 'label']` (adding `'id'` is fine, with `'dosen'` added as a distinct role), `Access::is()` and `Access::home()` keep their signatures, and the `role:` middleware keeps working.
 
 ---
 
-## Part 2: Sean — Proker Creation, Supabase & Delivery (18 remaining pts)
+## Part 2: Sean — Database Overhaul, Proker Creation, Supabase, AI & Delivery (16 remaining pts · 22 total)
+
+**Done on `Sean` branch (verified live on Supabase `himpun` schema):**
+- [x] **2.1 Database Overhaul, Proker Models & `ProkerStatus` Enum (6 pts):**
+  - Migrations `2026_12_01_200000`–`200200`: `proker_division_jobdescs`, `proker_meetings`, nullable `prokers.location`, `UNIQUE(proker_id, membership_id)` on `proker_assignments`, `UNIQUE(proker_id, name)` on `proker_divisions`, nullable `users.password` + `activated_at` + `deleted_at`, `organisations.advisor_user_id`, term-scoped `divisions.term_id` (`UNIQUE(organisation_id, term_id, name)`) & `jobdescs.term_id`, plus Postgres FK indexes.
+  - Models `Proker`, `ProkerDivision`, `ProkerAssignment`, `ProkerDivisionJobdesc`, `ProkerMeeting`, `App\Enums\ProkerStatus`, updated `User`/`Organisation`/`Term`/`Division`/`Jobdesc` (`Jobdesc::DEFAULT_HOD_TITLES`), and `ProkerSchemaTest`.
+  - Supabase PostgreSQL (`lhnoaslcoadicdgrmesd`, private schema `himpun`) migrated & seeded.
 
 **Remaining features:**
-- [x] **2.1 Proker Models, Migrations & `ProkerStatus` Enum (5 pts · *built on `Sean` branch*):** Models `Proker`, `ProkerDivision`, `ProkerAssignment`, `ProkerDivisionJobdesc`, `ProkerMeeting`; new migrations `2026_12_01_2*` for `proker_division_jobdescs`, `proker_meetings`, nullable `prokers.location`, `UNIQUE(proker_id, membership_id)` on `proker_assignments`, `UNIQUE(proker_id, name)` on `proker_divisions` & Postgres FK indexes; `App\Enums\ProkerStatus` with labels & pill colours.
 - [ ] **2.2 Create Proker Backend (4 pts):** `POST /proker` controller + `StoreProkerRequest` inside a DB transaction enforcing: 1 person 1 role per proker, Ketupel ≠ PJ, valid jobdesc titles & integer targets, Hari-H ≥ today, `repeat` requires `previous_proker_id` (422 on every violation).
 - [ ] **2.3 Create Proker Form & `ProkerSeeder` (3 pts):** Feed real DB members & past prokers into `create.blade.php`, show server 422 errors, redirect to saved proker; write `ProkerSeeder` seeding the 7 baseline prokers (with divisions, assignments, jobdescs, meetings).
 - [ ] **2.4 Create-Flow Tests & `Asia/Jakarta` Timezone (2 pts):** Feature tests for `POST /proker` (happy path + every 422 rule), keep `tests/js/proker-form.test.mjs` green, set `'timezone' => 'Asia/Jakarta'` in `config/app.php` with `Carbon::setTestNow` tests.
-- [ ] **2.5 Supabase PostgreSQL & CI/CD Overhaul (3 pts):** Configure Postgres (`config/database.php` `DB_SCHEMA` / private schema or RLS lock-down, Session Pooler port 5432, `DB_SSLMODE=require`); overhaul `.github/workflows/deploy.yaml` (`postgres:16` service + `pgsql` ext, `npm ci`, JS tests + `pint --test`, `permissions: contents: read`, SSH key auth, zero-downtime `vendor`/`build` swap).
-- [ ] **2.6 Docs & Final Cleanup PR (1 pt):** Keep `README.md` accurate, write `docs/DEPLOY.md` (CloudPanel + Supabase setup & SSL), delete `welcome.blade.php`, and (last, after BB & Dzacky finish) delete `DummyData.php` + `DummyDataTest.php` and run Pint across the repo.
+- [ ] **2.5 CI/CD Overhaul for Supabase/Postgres (3 pts):** Overhaul `.github/workflows/deploy.yaml` (`postgres:16` service + `pgsql` ext, `npm ci`, JS tests + `pint --test`, `permissions: contents: read`, SSH key auth, zero-downtime `vendor`/`build` swap).
+- [ ] **2.6 AI Integration (3 pts):** Own and implement Himpun's AI feature(s) (`app/Services/Ai/**`, `routes/ai.php`, UI & tests; exact scope TBD).
+- [ ] **2.7 Docs & Final Cleanup PR (1 pt):** Keep `README.md` accurate, write `docs/DEPLOY.md` (CloudPanel + Supabase setup & SSL), delete `welcome.blade.php`, and (last, after BB & Dzacky finish) delete `DummyData.php` + `DummyDataTest.php` and run Pint across the repo.
 
 ---
 
-## Part 3: Dzacky — Division Requests, Proker List & Proker Detail (18 remaining pts)
+## Part 3: Dzacky — Division Requests, Proker List & Proker Detail (20 remaining pts)
 
 **Drafted on `origin/dzaky` (`e847c4d`):**
 - [x] `division_requests` migration (`2026_12_01_300000`), `DivisionRequest` model, `DivisionRequestPolicy`, `StoreDivisionRequest`, `UpdateDivisionRequestStatusRequest`
@@ -78,9 +85,9 @@ BB must keep stable: `Access::me()` returns `['role', 'name', 'label']` (adding 
 - [ ] **3.1 Division Requests Backend (3 pts):** Wire `DivisionRequestController` + `routes/request.php` to DB; enforce sender coordinates `from_division`, receiver-only answers, valid status transitions (`Menunggu → Diproses/Ditolak`, `Diproses → Selesai`), validated divisions, DB IDs; expose `DivisionRequest::pendingCountFor(array $me): int`.
 - [ ] **3.2 Division Requests UI & XSS Fixes (2 pts):** Replace `'{{ old(...) }}'` and raw Blade interpolation inside Alpine attributes (`request/index.blade.php:L32-34,L84`) with `@js(...)`; remove unused `$aktifProkers`; keyboard-friendly tabs.
 - [ ] **3.3 Division Requests Tests & `RequestSeeder` (2 pts):** Feature tests covering every rule (sender/receiver/status/403s) + `RequestSeeder`.
-- [ ] **3.4 Live Proker List & `ProkerAccess` (3 pts):** Move `canSee`, `listFor`, `roleLabel`, `divisionsCoordinated` onto Eloquent in `App\Support\ProkerAccess`; move `proker/index.blade.php` off `DummyData` using `ProkerStatus` enum (after Sean's 2.1).
+- [ ] **3.4 Live Proker List & `ProkerAccess` (5 pts):** Move `canSee`, `listFor`, `roleLabel`, `divisionsCoordinated` onto Eloquent in `App\Support\ProkerAccess`; add `ProkerAccess::summaryForUser(User $user)` (returns active/past prokers, divisions & roles for BB's Dosen Pembina Tab 2 student detail); move `proker/index.blade.php` off `DummyData` using `ProkerStatus` enum (after Sean's 2.1).
 - [ ] **3.5 Live Proker Detail (5 pts):** Move `proker/show.blade.php` off `DummyData`; add endpoints to tick/add/delete `ProkerDivisionJobdesc` and add/delete `ProkerMeeting` (HOD only, 403 for PJ/Koordinator/Anggota) with a "Saved" indicator.
-- [ ] **3.6 Proker List & Detail Tests (3 pts):** Feature tests for `/proker`, `/proker/{id}`, jobdesc/meeting CRUD & 403 guards; keep `tests/js/proker-detail.test.mjs` green.
+- [ ] **3.6 Proker List & Detail Tests (3 pts):** Feature tests for `/proker`, `/proker/{id}`, `summaryForUser()`, jobdesc/meeting CRUD & 403 guards; keep `tests/js/proker-detail.test.mjs` green.
 
 Dzacky finishes 3.1–3.3 first (independent), then starts 3.4–3.6 right after Sean's 2.1 merges.
 
@@ -116,11 +123,11 @@ Dzacky finishes 3.1–3.3 first (independent), then starts 3.4–3.6 right after
 | `composer.json`, `composer.lock`, `package.json`, `package-lock.json`, `vite.config.js`, `.env.example` | **BB** |
 | `app/Models/Proker*.php`, `app/Enums/ProkerStatus.php`, `database/seeders/ProkerSeeder.php`, proker-store controller & `StoreProkerRequest` | **Sean** |
 | `routes/proker_write.php`, `resources/views/proker/create.blade.php`, `resources/js/components/proker-form.js` | **Sean** |
-| `config/app.php` (timezone), `config/database.php` (Supabase `pgsql` schema/pooler), `.github/**`, `README.md`, `docs/**`, `phpunit.xml`, `resources/views/welcome.blade.php` | **Sean** |
+| `config/app.php` (timezone), `config/database.php` (Supabase `pgsql` schema/pooler), `app/Services/Ai/**`, `routes/ai.php`, `.github/**`, `README.md`, `docs/**`, `phpunit.xml`, `resources/views/welcome.blade.php` | **Sean** |
 | `app/Support/ProkerAccess.php`, `app/Models/DivisionRequest.php`, `app/Policies/DivisionRequestPolicy.php`, request & proker-read/detail controllers & Form Requests, `database/seeders/RequestSeeder.php` | **Dzacky** |
 | `routes/proker_read.php`, `routes/request.php` | **Dzacky** |
 | `resources/views/proker/index.blade.php`, `resources/views/proker/show.blade.php`, `resources/views/request/**`, `resources/js/components/proker-detail.js` | **Dzacky** |
-| `app/Support/DummyData.php`, `DatabaseSeeder.php`, `resources/js/app.js`, `resources/js/dates.js`, `resources/views/components/*`, `routes/web.php`, `Controller.php` | **frozen** *(Sean deletes `DummyData` in 2.6)* |
+| `app/Support/DummyData.php`, `DatabaseSeeder.php`, `resources/js/app.js`, `resources/js/dates.js`, `resources/views/components/*`, `routes/web.php`, `Controller.php` | **frozen** *(Sean deletes `DummyData` in 2.7)* |
 | `database/migrations/` | new files only. Timestamp ranges: BB `2026_12_01_1*`, Sean `2026_12_01_2*`, Dzacky `2026_12_01_3*` |
 | `tests/` | BB: `ActsAsRole`, access/auth/members/divisions/admin/dashboards · Sean: proker-create + `proker-form.test.mjs` · Dzacky: requests, proker list/detail + `proker-detail.test.mjs` |
 

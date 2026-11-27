@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Organisation extends Model
@@ -15,7 +16,13 @@ class Organisation extends Model
         'slug',
         'type',
         'faculty',
+        'advisor_user_id',
     ];
+
+    public function advisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'advisor_user_id');
+    }
 
     public function terms(): HasMany
     {

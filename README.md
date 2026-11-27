@@ -36,14 +36,17 @@ flowchart TD
     STAFF -. Mentorship & Onboarding .-> PULSE
 ```
 
-- **Dosen Pembina (Faculty Advisor)**: The supervising faculty lecturer who guides student union members whenever they encounter challenges, provides institutional advisory, and helps resolve high-level conflicts or organizational deadlocks.
-- **HOD (Head of Department / Executive Board)**: The standing executive board steering overall union governance, consisting of four core officers:
+- **Dosen Pembina (Faculty Advisor)**: The supervising faculty lecturer with persistent oversight across **all periods** (`25/26`, `26/27`, `27/28`, ...). Has a dedicated **2-Tab Dashboard**:
+  - **Tab 1 — Periode:** Create/manage periods, customize divisions & HOD slots per period (add/rename/remove divisions freely), add or remove students per division, and carry over returning members across periods.
+  - **Tab 2 — Daftar Mahasiswa:** Master student directory across periods to view each student's full summary (memberships, jobdescs, active/past prokers & roles, workload), **reset password** (resets activation so the student sets a new password via `/register`), and **smart delete** (hard delete if no proker history; soft delete if they have historical proker records).
+- **First-Time Student Activation (`/register`)**: When Dosen Pembina adds a new student (`Nama`, `NIM`, `Email`), the account starts unactivated (`password = null`). On first login, the student clicks **Register**, enters `Nama`, `NIM`, `Email`, `Password`, and `Confirm Password` to claim their account. Returning members from an earlier period reuse their existing account automatically.
+- **HOD (Head of Department / Executive Board)**: The standing executive board steering overall union governance — defaults to **6 flexible slots** per period (customizable by Dosen Pembina):
   - 👑 **President** (Ketua Himpunan)
   - 🤝 **Vice President** (Wakil Ketua)
-  - 📝 **Secretary** (Sekretaris)
-  - 💰 **Treasurer** (Bendahara)
-- **Koordinator**: Divisional coordinators leading standing operational teams (Tech, PDD Design, PDD Dokum, Event, Social Relation, Properties).
-- **Members / Staff**: Core committee members executing operational job descriptions (jobdescs) and daily responsibilities.
+  - 💰 **Bendahara** (Treasurer) & **Asisten Bendahara** (Assistant Treasurer)
+  - 📝 **Secretary** (Sekretaris) & **Asisten Secretary** (Assistant Secretary)
+- **Koordinator**: Divisional coordinators leading standing operational teams (default baseline: Tech, PDD Design, PDD Dokum, Event, Social Relation, Properties — fully customizable per period by Dosen Pembina).
+- **Members / Staff**: Core committee members executing operational job descriptions (jobdescs) and daily responsibilities (headcount per division is flexible).
 - **Pulse Program**: An exclusive internship and talent pipeline for Student Union IMT, introducing junior student cohorts to organizational culture, committee responsibilities, and hands-on event execution before full induction.
 
 ---
@@ -180,47 +183,52 @@ flowchart RL
 
 Himpun is built by three people. After BB's first milestone merged (`7ed1137`), the **remaining work** was rebalanced to **18 points each** so everyone works in parallel with zero file conflicts. Full contracts, migration ranges, and the file-ownership map are in [`docs/pembagian-tugas.md`](docs/pembagian-tugas.md).
 
-### 1. BB — Access, Organisation, `/admin` & Dashboards *(18 pts remaining)*
+### 1. BB — Access, Dosen Pembina Dashboard, `/register` & Dashboards *(20 pts remaining)*
 - **Already merged on `main`:**
   - [x] Organisation, Term, Division, Membership & Jobdesc models + `OrganisationSeeder` (42 members)
   - [x] Login & Logout (`/login`, `/logout`)
   - [x] Members Directory (`/anggota`) and Divisions & Jobdesc CRUD (`/divisi`, `/jobdesc`)
   - [x] Admin Console moved into `layouts.app` with `role:hod`
 - **Remaining features:**
-  - [ ] **Auth & Per-Proker Roles (3 pts):** Protect routes with `auth` (redirect guests to `/login`), resolve `pj`/`koor`/`ketupel` from `proker_assignments`, unify `dosen`/`isHod()`
-  - [ ] **Account Menu & Local-Only Switcher (2 pts):** Sign In / Sign Out in header, return 404 on `/peran` outside `local`, show DB pending request badge
-  - [ ] **Security & Postgres Fixes (3 pts):** Rate-limit `/login`, `SESSION_SECURE_COOKIE`, HSTS/CSP headers, case-insensitive `/anggota` search, org-scoped edits, delete dead `adminView.blade.php`
-  - [ ] **Auth & Master-Data Tests (3 pts):** `ActsAsRole` helper, fix the 17 broken PHPUnit tests on `main`, add tests for login, `/anggota`, `/divisi`, `/jobdesc`, `/admin`
-  - [ ] **Live Admin Console (3 pts):** Wire `/admin` Ketupel/PJ assignment, division jobdesc monitor, and timeline to real DB queries
-  - [ ] **Live HOD & PJ Dashboards (4 pts):** Move `/dashboard` off `DummyData`, fix empty-DB divide-by-zero & past Hari-H labels, add dashboard tests
+  - [ ] **Auth, `/register` Activation & Roles (4 pts):** Protect routes with `auth`, build `/register` (`Nama`, `NIM`, `Email`, `Password`, `Confirm Password`) to claim pre-registered accounts, separate `role = 'dosen'` (via `organisations.advisor_user_id`), resolve per-proker roles (`pj`, `koor`, `ketupel`) from `proker_assignments`
+  - [ ] **Account Menu, Local Switcher & Security (3 pts):** Sign In / Sign Out in header, 404 on `/peran` outside `local`, `throttle:5,1` on `/login`, `SESSION_SECURE_COOKIE`, HSTS/CSP headers, Postgres case-insensitive `/anggota` search, org-scoped edits, delete `adminView.blade.php`
+  - [ ] **Auth & Master-Data Tests (3 pts):** `ActsAsRole` helper, fix the 17 failing PHPUnit tests on `main`, add tests for `/login`, `/register`, `/anggota`, `/divisi`, `/jobdesc`, and Dosen Pembina guards
+  - [ ] **Dosen Pembina 2-Tab Dashboard (6 pts):**
+    - *Tab 1 (Periode):* List/create periods (`25/26`, `26/27`, `27/28`), flexible default 6 HOD slots + custom divisions per period, add/remove students (new pre-register or carry-over from past term)
+    - *Tab 2 (Daftar Mahasiswa):* Master directory across periods with student detail summary (jobdescs + active/past prokers via `ProkerAccess::summaryForUser()`), **Reset Password** (clears `password` & `activated_at` so student re-registers), and **Smart Delete** (hard delete if no proker history; soft delete if has history)
+  - [ ] **Live HOD & PJ Dashboards (4 pts):** Move `/dashboard` off `DummyData`, fix empty-DB divide-by-zero & past Hari-H labels, fold/retire duplicate static `/admin`, add dashboard tests
 
-### 2. Sean — Proker Creation, Supabase & Delivery *(13 pts remaining)*
-- **Done on `Sean` branch:**
-  - [x] **Proker Models, Migrations & Status Enum (5 pts):** `Proker`, `ProkerDivision`, `ProkerAssignment`, `ProkerDivisionJobdesc`, `ProkerMeeting`, `ProkerStatus` enum, `prokers.location`, `UNIQUE(proker_id, membership_id)`, `UNIQUE(proker_id, name)` & Postgres FK indexes
+### 2. Sean — Database Overhaul, Proker Creation, Supabase, AI & Delivery *(16 pts remaining)*
+- **Done on `Sean` branch (verified live on Supabase `himpun` schema):**
+  - [x] **Proker & Dosen Pembina Database Overhaul (6 pts):**
+    - Migrations `2026_12_01_200000`–`200200` (`proker_division_jobdescs`, `proker_meetings`, `prokers.location`, `UNIQUE(proker_id, membership_id)`, `UNIQUE(proker_id, name)`, `users.password` nullable + `activated_at` + `deleted_at`, `organisations.advisor_user_id`, term-scoped `divisions.term_id` & `jobdescs.term_id`, Postgres FK indexes)
+    - Models (`Proker`, `ProkerDivision`, `ProkerAssignment`, `ProkerDivisionJobdesc`, `ProkerMeeting`) + `ProkerStatus` enum + updated `User`/`Organisation`/`Term`/`Division`/`Jobdesc` + `ProkerSchemaTest` (6/6 passing)
+    - Supabase PostgreSQL (`lhnoaslcoadicdgrmesd`, private schema `himpun`) live, migrated (27 tables), and seeded (42 users)
 - **Remaining features:**
   - [ ] **Create Proker Backend (4 pts):** `POST /proker` controller & Form Request in a DB transaction (1 person 1 role, Ketupel ≠ PJ, valid jobdescs, Hari-H ≥ today, repeat link)
   - [ ] **Create Proker Form & Seeder (3 pts):** Feed real DB members & past prokers into `/proker/baru`, show server 422 errors, redirect to saved proker, build `ProkerSeeder`
   - [ ] **Create-Flow Tests & WIB Timezone (2 pts):** PHP feature tests for every rule, keep `proker-form.test.mjs` green, set `Asia/Jakarta` timezone with `Carbon::setTestNow`
-  - [ ] **Supabase PostgreSQL & CI/CD Overhaul (3 pts):** Configure Supabase Session Pooler + private schema/RLS lock-down; fix `deploy.yaml` (`postgres:16`, `npm ci`, JS tests + Pint, `contents: read`, SSH key, zero-downtime swap)
+  - [ ] **CI/CD Overhaul for Supabase/Postgres (3 pts):** Fix `deploy.yaml` (`postgres:16`, `pgsql` ext, `npm ci`, JS tests + Pint, `contents: read`, SSH key, zero-downtime swap)
+  - [ ] **AI Integration (3 pts):** Build and integrate Himpun's AI feature(s) (scope & provider to be finalized)
   - [ ] **Docs & Final Cleanup (1 pt):** `docs/DEPLOY.md`, keep `README.md` current, delete `welcome.blade.php`, and closing PR deleting `DummyData.php`
 
-### 3. Dzacky — Division Requests, Proker List & Proker Detail *(18 pts remaining)*
+### 3. Dzacky — Division Requests, Proker List & Proker Detail *(20 pts remaining)*
 - **Drafted on `dzaky` branch:**
   - [x] `division_requests` migration, `DivisionRequest` model, policy & Form Requests
 - **Remaining features:**
   - [ ] **Division Requests Backend (3 pts):** Wire controller & routes to DB, enforce sender/receiver rules & valid status order, add `DivisionRequest::pendingCountFor()`
   - [ ] **Division Requests UI Fixes (2 pts):** Fix XSS by replacing `'{{ old(...) }}'` with `@js(...)` in `request/index.blade.php`, drop unused variables, keyboard-friendly tabs
   - [ ] **Division Requests Tests & Seeder (2 pts):** Feature tests for every rule + `RequestSeeder`
-  - [ ] **Live Proker List & `ProkerAccess` (3 pts):** Move proker visibility logic to DB (`App\Support\ProkerAccess`) and wire `/proker` using `ProkerStatus` enum
+  - [ ] **Live Proker List & `ProkerAccess` (5 pts):** Move proker visibility logic to DB (`App\Support\ProkerAccess`), add `ProkerAccess::summaryForUser(User $user)` (for Dosen Pembina's Tab 2 student detail), and wire `/proker` using `ProkerStatus` enum
   - [ ] **Live Proker Detail (5 pts):** Move `/proker/{id}` off `DummyData` and save ticked/added/removed jobdescs & weekly meetings (HOD only, 403 for others)
-  - [ ] **Proker List & Detail Tests (3 pts):** PHP feature tests for `/proker`, `/proker/{id}` & write guards + keep `proker-detail.test.mjs` green
+  - [ ] **Proker List & Detail Tests (3 pts):** PHP feature tests for `/proker`, `/proker/{id}`, `summaryForUser()` & write guards + keep `proker-detail.test.mjs` green
 
 **Working agreement (details in the doc):**
 
 1. Edit only the files you own. Need a change elsewhere? Open a tiny PR to `main` first.
 2. Never edit an old migration; add new ones (timestamp ranges: BB `2026_12_01_1*`, Sean `2026_12_01_2*`, Dzacky `2026_12_01_3*`).
 3. No repo-wide formatting or dependency updates. Only BB changes `composer.*` and `package*.json`.
-4. `DummyData.php` is frozen; Sean deletes it in the closing PR (2.6).
+4. `DummyData.php` is frozen; Sean deletes it in the closing PR (2.7).
 5. Rebase on `main` daily, keep PRs small, and make `php artisan test`, `node --test "tests/js/*.test.mjs"`, and `vendor/bin/pint --test <your files>` pass before opening one.
 
 ---
@@ -239,6 +247,7 @@ Himpun is built by three people. After BB's first milestone merged (`7ed1137`), 
 | **Jobdesc targets & weekly meetings** | 🟡 Tables & models built on `Sean`; screens still on dummy data | Sean (tables), Dzacky (screens) |
 | **Proker list & detail** (`/proker`, `/proker/{id}`) | 🟡 Prototype on dummy data | Dzacky |
 | **Division requests** (koordinator to koordinator) | 🟡 Schema/model/policy drafted on `dzaky`; UI still on session | Dzacky |
+| **AI integration** | ⚪ Planned | Sean |
 | **Oprec, Pulse, Approvals, Budget, Documents & Tasks** | ⚪ Schema migrated, features not assigned yet | – |
 
 ---
@@ -287,12 +296,12 @@ erDiagram
 
 | Table | Key Columns & Constraints | Model Status | Owner (Jobdesc) |
 |---|---|---|---|
-| **`users`** | `id`, `name`, `email` (unique), `nim` (unique, nullable), `phone` (nullable), `password` | ✅ `User` | **BB** *(done; auth guards/tests 1.1–1.4)* |
-| **`organisations`** | `id`, `name`, `slug` (unique), `type` (`himpunan`/`bem`/`mentoring`/`bpm`/`ukm`), `faculty` | ✅ `Organisation` | **BB** *(done; org-scoping 1.3)* |
-| **`terms`** | `id`, `organisation_id` (FK), `name`, `starts_on`, `ends_on`, `is_active` | ✅ `Term` | **BB** *(done)* |
-| **`divisions`** | `id`, `organisation_id` (FK), `name` · `UNIQUE(organisation_id, name)` | ✅ `Division` | **BB** *(done; tests 1.3–1.4)* |
-| **`jobdescs`** | `id`, `organisation_id` (FK), `division_id` (nullable FK), `title`, `description`, `level` (`dosen`/`hod`/`koordinator`/`staff`) | ✅ `Jobdesc` | **BB** *(done; tests 1.3–1.4)* |
-| **`memberships`** | `id`, `user_id`, `organisation_id`, `term_id`, `division_id`?, `jobdesc_id`?, `status` · `UNIQUE(user_id, organisation_id, term_id)` | ✅ `Membership` | **BB** *(done; Postgres search 1.3)* |
+| **`users`** | `id`, `name`, `email` (unique), `nim` (unique, nullable), `phone` (nullable), `password` (nullable until `/register`), `activated_at`?, `deleted_at`? (soft delete) | ✅ `User` | **BB** *(auth & `/register` 1.1–1.4)* |
+| **`organisations`** | `id`, `name`, `slug` (unique), `type` (`himpunan`/`bem`/`mentoring`/`bpm`/`ukm`), `faculty`, `advisor_user_id`? (FK → `users`, Dosen Pembina) | ✅ `Organisation` | **BB** *(Dosen Pembina 1.1 / 1.4)* |
+| **`terms`** | `id`, `organisation_id` (FK), `name` (`25/26`, `26/27`, ...), `starts_on`, `ends_on`, `is_active` | ✅ `Term` | **BB** *(Tab 1 Periode 1.4)* |
+| **`divisions`** | `id`, `organisation_id` (FK), `term_id` (FK), `name` · `UNIQUE(organisation_id, term_id, name)` | ✅ `Division` | **BB** *(per-term divisions 1.4)* |
+| **`jobdescs`** | `id`, `organisation_id` (FK), `term_id` (FK), `division_id`? (null for HOD; default 6 HOD titles), `title`, `description`, `level` | ✅ `Jobdesc` | **BB** *(per-term HOD/divisi 1.4)* |
+| **`memberships`** | `id`, `user_id`, `organisation_id`, `term_id`, `division_id`?, `jobdesc_id`?, `status` · `UNIQUE(user_id, organisation_id, term_id)` | ✅ `Membership` | **BB** *(Tab 1 & Tab 2 1.4)* |
 | **`interns`** | `id`, `membership_id` (unique FK), `mentor_membership_id` (FK), `cohort`, `score`, `status` | ⚪ No model yet | Unassigned *(Pulse)* |
 | **`prokers`** | `id`, `organisation_id`, `term_id`, `previous_proker_id` (self-FK), `name`, `type` (`repeat`/`new`), `status` (`ProkerStatus`), `description`, `starts_on`, `ends_on`, `location` | ✅ `Proker` *(on `Sean`)* | **Sean** (2.1–2.4) |
 | **`proker_divisions`** | `id`, `proker_id` (FK), `division_id` (nullable FK), `name` · `UNIQUE(proker_id, name)` | ✅ `ProkerDivision` *(on `Sean`)* | **Sean** (2.1–2.4) |

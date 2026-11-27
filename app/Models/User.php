@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -18,6 +20,7 @@ class User extends Authenticatable
         'nim',
         'phone',
         'password',
+        'activated_at',
     ];
 
     protected $hidden = [
@@ -29,8 +32,24 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'activated_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function advisedOrganisations(): HasMany
+    {
+        return $this->hasMany(Organisation::class, 'advisor_user_id');
+    }
+
+    public function isActivated(): bool
+    {
+        return $this->activated_at !== null && $this->password !== null;
+    }
+
+    public function isAdvisor(): bool
+    {
+        return $this->advisedOrganisations()->exists();
     }
 
     public function memberships(): HasMany
