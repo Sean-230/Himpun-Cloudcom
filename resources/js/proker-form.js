@@ -172,11 +172,14 @@ export default (members, divisionDefs) => ({
         return ids.map((id) => this.person(id).name).join(', ');
     },
 
-    submit() {
+    submit(event) {
         this.tried = true;
         if (this.canSubmit) {
-            this.done = true;
+            if (!event) {
+                this.done = true;
+            }
         } else {
+            event?.preventDefault();
             this.$nextTick(() => document.querySelector('[data-error]:not([style*="none"])')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
         }
     },

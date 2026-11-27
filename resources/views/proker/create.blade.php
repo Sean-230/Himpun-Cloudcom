@@ -12,12 +12,48 @@
         <div>
             <a href="{{ route('proker.index') }}" class="text-[13px] text-muted hover:text-ink">← Proker</a>
             <h1 class="mt-1 text-[22px] font-semibold leading-tight">Buat proker</h1>
-            <p class="mt-0.5 text-muted">Sebagai HOD · SU IMT · Periode 2025/2026</p>
+            <p class="mt-0.5 text-muted">Sebagai HOD · {{ $organisation?->name ?? 'SU IMT' }} · Periode {{ $term?->name ?? '2025/2026' }}</p>
         </div>
         <a href="{{ route('proker.index') }}" class="inline-flex h-9 items-center rounded-[10px] px-4 ring-1 ring-line hover:bg-black/5">Batal</a>
     </div>
 
-    <form x-show="!done" @submit.prevent="submit()" class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_384px]">
+    @if ($errors->any())
+        <div role="alert" class="mt-4 rounded-xl border border-bad/30 bg-[#fbe9e7] px-4 py-3 text-[13px] text-bad">
+            <p class="font-medium">Gagal menyimpan proker:</p>
+            <ul class="mt-1 list-disc pl-5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('proker.store') }}" @submit="submit($event)" class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_384px]">
+        @csrf
+        <input type="hidden" name="name" :value="form.name">
+        <input type="hidden" name="type" :value="form.type">
+        <input type="hidden" name="previous_proker_id" :value="form.type === 'repeat' ? form.previous : ''">
+        <input type="hidden" name="hari_h" :value="form.hariH">
+        <input type="hidden" name="location" :value="form.lokasi">
+        <input type="hidden" name="ketupel_membership_id" :value="form.ketupel">
+        <input type="hidden" name="pj_membership_id" :value="form.pj">
+        <template x-for="(div, di) in active" :key="'post-' + div.name">
+            <div>
+                <input type="hidden" :name="`divisions[${di}][name]`" :value="div.name">
+                <template x-for="(id, ki) in div.koor" :key="'k-' + id">
+                    <input type="hidden" :name="`divisions[${di}][koor][${ki}]`" :value="id">
+                </template>
+                <template x-for="(id, ai) in div.anggota" :key="'a-' + id">
+                    <input type="hidden" :name="`divisions[${di}][anggota][${ai}]`" :value="id">
+                </template>
+                <template x-for="(j, ji) in div.jobdesc" :key="'j-' + j.id">
+                    <div>
+                        <input type="hidden" :name="`divisions[${di}][jobdesc][${ji}][title]`" :value="j.title">
+                        <input type="hidden" :name="`divisions[${di}][jobdesc][${ji}][h]`" :value="j.h">
+                    </div>
+                </template>
+            </div>
+        </template>
         <div class="flex min-w-0 flex-col gap-4">
             <section class="rounded-xl border border-line p-5">
                 <h2 class="text-base font-semibold">Informasi proker</h2>
@@ -39,10 +75,10 @@
                     <label x-show="form.type === 'repeat'" x-cloak class="sm:col-span-2">
                         <span class="mb-2 block font-medium">Proker sebelumnya</span>
                         <select x-model="form.previous" class="field" :class="err('previous') && 'border-bad!'" :aria-invalid="!!err('previous')">
-                            <option value="">Pilih proker periode lalu</option>
-                            <option>Techfest UC 2025</option>
-                            <option>IMT Orientation Camp 2025</option>
-                            <option>IMT Class Meeting 2025</option>
+                            <option value="">{{ count($previousProkers ?? []) ? 'Pilih proker periode lalu' : 'Belum ada proker sebelumnya di database' }}</option>
+                            @foreach ($previousProkers ?? [] as $prev)
+                                <option value="{{ $prev['id'] }}">{{ $prev['name'] }}</option>
+                            @endforeach
                         </select>
                         <p x-show="err('previous')" x-text="err('previous')" role="alert" data-error class="mt-1.5 text-[13px] text-bad"></p>
                     </label>
@@ -202,16 +238,5 @@
             </section>
         </aside>
     </form>
-
-    <section x-show="done" x-cloak class="mt-6 max-w-xl rounded-xl border border-line p-5">
-        <h2 class="text-base font-semibold">Proker dibuat</h2>
-        <p class="mt-2"><span class="font-medium" x-text="form.name"></span>, Hari-H <span x-text="fmtDate(form.hariH)"></span>.</p>
-        <p class="mt-1 text-muted tabular-nums" x-text="totals.divisi + ' divisi · ' + totals.koor + ' koordinator · ' + totals.anggota + ' anggota · ' + totals.jobdesc + ' jobdesc. Yang masih kosong bisa dilengkapi nanti.'"></p>
-        <p class="mt-3 text-[13px] text-muted">Ini pratinjau: data belum disimpan.</p>
-        <div class="mt-4 flex gap-2">
-            <a href="{{ route('proker.index') }}" class="inline-flex h-9 items-center rounded-[10px] bg-accent px-4 font-medium text-white">Ke daftar proker</a>
-            <button type="button" @click="location.reload()" class="h-9 rounded-[10px] px-4 ring-1 ring-line hover:bg-black/5">Buat proker lain</button>
-        </div>
-    </section>
 </div>
 @endsection

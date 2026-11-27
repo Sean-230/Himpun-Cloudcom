@@ -1,47 +1,26 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# Himpun — Claude Code Guidelines
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+Read `docs/pembagian-tugas.md` and `README.md` before making any changes.
 
-## Prerequisites
+## 1. Respect Team Ownership (BB, Sean, Dzacky)
+- Confirm which developer you are working for (**BB**, **Sean**, or **Dzacky**) and **only edit files owned by that developer** (see `docs/pembagian-tugas.md` → *File ownership map* and *Route jobdesc*).
+- Never edit an existing migration that has already been committed; always add a new migration in your owner's timestamp range (`BB: 2026_12_01_1*`, `Sean: 2026_12_01_2*`, `Dzacky: 2026_12_01_3*`).
+- Do not modify `composer.json`, `package.json`, or lockfiles unless working for BB. Do not install `laravel/boost`.
+- `app/Support/DummyData.php` is frozen (Sean removes it in the closing PR).
 
-Verify that PHP and Composer are available:
+## 2. Mandatory Auto-Update of `README.md` & `docs/pembagian-tugas.md`
+Whenever you finish implementing a task or feature for your developer — **without waiting to be asked**:
+1. Run verification first:
+   - `php artisan test` (or your feature's PHPUnit tests)
+   - `node --test "tests/js/*.test.mjs"`
+   - `vendor/bin/pint --test <your changed PHP files>`
+2. Only after tests and Pint pass, update **both** `README.md` and `docs/pembagian-tugas.md`:
+   - Check off `[ ]` → `[x]` **only under your owner's section** and adjust their remaining points.
+   - Update **only your owner's row(s)** in `README.md` → `## 📊 Feature Status & Roadmap`.
+   - If you added a migration, table, or model, update **only your owner's row(s)** in `README.md` → `## 🗄️ Database Structure`.
+3. **Never edit another teammate's section** in `README.md` or `docs/pembagian-tugas.md` to avoid merge conflicts.
 
-```sh
-php -v
-composer -V
-```
-
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
-
-macOS:
-
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
-```
-
-Windows PowerShell:
-
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
-```
-
-Linux:
-
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
-```
-
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
-
-## Agent Setup
-
-Install Laravel Boost from the application root before making application changes:
-
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
-```
-
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+## 3. Database & Stack Notes
+- Production database is **Supabase PostgreSQL** (schema `himpun`, Session Pooler port `5432`, `DB_SSLMODE=require`). Local tests use SQLite `:memory:` via `phpunit.xml`.
+- Keep queries compatible with **both SQLite and PostgreSQL** (e.g., use `LOWER(col) LIKE ?` instead of case-sensitive `LIKE`, add explicit `$table->index(...)` on new FK columns — never chain `->constrained()->index()`).
+- Timezone is `Asia/Jakarta` (WIB).

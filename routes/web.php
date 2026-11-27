@@ -41,10 +41,8 @@ Route::get('/proker', function () {
     return view('proker.index', ['prokers' => Access::listFor($me), 'me' => $me]);
 })->name('proker.index');
 
-Route::get('/proker/baru', fn () => view('proker.create', [
-    'members' => DummyData::members(),
-    'divisions' => DummyData::divisionDefs(),
-]))->middleware('role:hod')->name('proker.create');
+require __DIR__.'/proker_write.php';
+require __DIR__.'/ai.php';
 
 Route::get('/proker/{id}', function (int $id) {
     $proker = DummyData::proker($id) ?? abort(404);

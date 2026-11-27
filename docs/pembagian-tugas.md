@@ -13,6 +13,21 @@ Points are relative effort (1 = small, 5 = a solid chunk of work), not hours.
 | **Remaining points** | **20** | **16** *(22 total incl. 2.1)* | **20** |
 | Why this person | Owns identity, `/register`, terms/divisions/members & dashboards | Owns proker schema/create, Supabase/CI & AI | Owns division requests, `ProkerAccess` & proker detail |
 
+## 🤖 Mandatory Rules for AI Coding Agents (BB, Sean & Dzacky)
+
+If you are an AI agent (Claude Code, Cursor, Codex, Antigravity, Copilot, etc.) reading this file for **BB**, **Sean**, or **Dzacky**:
+
+1. **Confirm who you are working for** (BB, Sean, or Dzacky) and **only edit files owned by that person** (see the File Ownership Map and Route Jobdesc below). Never edit old migrations or another teammate's files.
+2. **Auto-update progress after finishing any task** — do NOT wait to be asked. Once a feature is implemented **and verified passing** (`php artisan test`, `node --test "tests/js/*.test.mjs"`, and `vendor/bin/pint --test <your files>`):
+   - In **`docs/pembagian-tugas.md`**: change `[ ]` to `[x]` on the completed item(s) **only under your owner's Part** and update their remaining points.
+   - In **`README.md`**:
+     - Change `[ ]` to `[x]` **only under your owner's section** in `## 👨‍💻 Team & Work Split` and update remaining points.
+     - Update **only your owner's row(s)** in `## 📊 Feature Status & Roadmap` (e.g., `🟡` → `🟢 Done`) and `## 🗄️ Database Structure` (if you added a new table or model, e.g., moving `division_requests` from `Not Merged Yet` to `Already Added`).
+3. **Never touch another teammate's checklist or unrelated lines** in `README.md` or `docs/pembagian-tugas.md` (prevents Git merge conflicts).
+4. **Never claim done without running tests:** only check `[x]` for items whose PHP/JS tests and Pint check actually passed.
+
+---
+
 ## Golden rules (all three)
 
 1. **Only edit files you own** (ownership map below). Need a change in someone else's file: open a tiny PR to `main`, merge it fast, everyone rebases.
@@ -66,9 +81,9 @@ BB must keep stable: `Access::me()` returns `['role', 'name', 'label']` (adding 
   - Supabase PostgreSQL (`lhnoaslcoadicdgrmesd`, private schema `himpun`) migrated & seeded.
 
 **Remaining features:**
-- [ ] **2.2 Create Proker Backend (4 pts):** `POST /proker` controller + `StoreProkerRequest` inside a DB transaction enforcing: 1 person 1 role per proker, Ketupel ≠ PJ, valid jobdesc titles & integer targets, Hari-H ≥ today, `repeat` requires `previous_proker_id` (422 on every violation).
-- [ ] **2.3 Create Proker Form & `ProkerSeeder` (3 pts):** Feed real DB members & past prokers into `create.blade.php`, show server 422 errors, redirect to saved proker; write `ProkerSeeder` seeding the 7 baseline prokers (with divisions, assignments, jobdescs, meetings).
-- [ ] **2.4 Create-Flow Tests & `Asia/Jakarta` Timezone (2 pts):** Feature tests for `POST /proker` (happy path + every 422 rule), keep `tests/js/proker-form.test.mjs` green, set `'timezone' => 'Asia/Jakarta'` in `config/app.php` with `Carbon::setTestNow` tests.
+- [x] **2.2 Create Proker Backend & Routes (4 pts · *built on `Sean` branch*):** `routes/proker_write.php`, `routes/ai.php`, `ProkerWriteController` + `StoreProkerRequest` inside a DB transaction enforcing: 1 person 1 role per proker, Ketupel ≠ PJ, PJ must be HOD, unique divisions, valid jobdesc titles & integer targets, Hari-H ≥ today, `repeat` requires `previous_proker_id` (422 on every violation).
+- [ ] **2.3 Create Proker Form *(done)* & `ProkerSeeder` (1 pt remaining):** `create.blade.php` & `proker-form.js` wired to live DB members, past prokers & `POST /proker`; remaining: write `ProkerSeeder` seeding the 7 baseline prokers (with divisions, assignments, jobdescs, meetings).
+- [x] **2.4 Create-Flow Tests & `Asia/Jakarta` Timezone (2 pts · *built on `Sean` branch*):** `ProkerCreateTest` (8/8 passing covering every 422 rule & WIB `Carbon::setTestNow`), `tests/js/proker-form.test.mjs` green (39/39), `'timezone' => 'Asia/Jakarta'` in `config/app.php`.
 - [ ] **2.5 CI/CD Overhaul for Supabase/Postgres (3 pts):** Overhaul `.github/workflows/deploy.yaml` (`postgres:16` service + `pgsql` ext, `npm ci`, JS tests + `pint --test`, `permissions: contents: read`, SSH key auth, zero-downtime `vendor`/`build` swap).
 - [ ] **2.6 AI Integration (3 pts):** Own and implement Himpun's AI feature(s) (`app/Services/Ai/**`, `routes/ai.php`, UI & tests; exact scope TBD).
 - [ ] **2.7 Docs & Final Cleanup PR (1 pt):** Keep `README.md` accurate, write `docs/DEPLOY.md` (CloudPanel + Supabase setup & SSL), delete `welcome.blade.php`, and (last, after BB & Dzacky finish) delete `DummyData.php` + `DummyDataTest.php` and run Pint across the repo.
@@ -146,3 +161,4 @@ Dzacky finishes 3.1–3.3 first (independent), then starts 3.4–3.6 right after
 - `php artisan test` green and `node --test "tests/js/*.test.mjs"` green.
 - `vendor/bin/pint --test <your files>` clean.
 - No file outside your ownership changed: check `git diff --stat origin/main`.
+- Your completed task(s) are checked off (`[x]`) and status rows updated in **both** `README.md` and `docs/pembagian-tugas.md` (only inside your own section).

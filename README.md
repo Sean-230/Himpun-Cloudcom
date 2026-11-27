@@ -198,16 +198,16 @@ Himpun is built by three people. After BB's first milestone merged (`7ed1137`), 
     - *Tab 2 (Daftar Mahasiswa):* Master directory across periods with student detail summary (jobdescs + active/past prokers via `ProkerAccess::summaryForUser()`), **Reset Password** (clears `password` & `activated_at` so student re-registers), and **Smart Delete** (hard delete if no proker history; soft delete if has history)
   - [ ] **Live HOD & PJ Dashboards (4 pts):** Move `/dashboard` off `DummyData`, fix empty-DB divide-by-zero & past Hari-H labels, fold/retire duplicate static `/admin`, add dashboard tests
 
-### 2. Sean — Database Overhaul, Proker Creation, Supabase, AI & Delivery *(16 pts remaining)*
+### 2. Sean — Database Overhaul, Proker Creation, Supabase, AI & Delivery *(8 pts remaining)*
 - **Done on `Sean` branch (verified live on Supabase `himpun` schema):**
   - [x] **Proker & Dosen Pembina Database Overhaul (6 pts):**
     - Migrations `2026_12_01_200000`–`200200` (`proker_division_jobdescs`, `proker_meetings`, `prokers.location`, `UNIQUE(proker_id, membership_id)`, `UNIQUE(proker_id, name)`, `users.password` nullable + `activated_at` + `deleted_at`, `organisations.advisor_user_id`, term-scoped `divisions.term_id` & `jobdescs.term_id`, Postgres FK indexes)
     - Models (`Proker`, `ProkerDivision`, `ProkerAssignment`, `ProkerDivisionJobdesc`, `ProkerMeeting`) + `ProkerStatus` enum + updated `User`/`Organisation`/`Term`/`Division`/`Jobdesc` + `ProkerSchemaTest` (6/6 passing)
     - Supabase PostgreSQL (`lhnoaslcoadicdgrmesd`, private schema `himpun`) live, migrated (27 tables), and seeded (42 users)
+  - [x] **Create Proker Routes, Backend & Form Wiring (6 pts):** `routes/proker_write.php`, `routes/ai.php`, `ProkerWriteController`, `StoreProkerRequest` (DB transaction, 1 person 1 role, Ketupel ≠ PJ, PJ must be HOD, unique divisions, valid jobdescs, Hari-H ≥ today, repeat link), wired `/proker/baru` to live DB members/past prokers + server error banner
+  - [x] **Create-Flow Tests & WIB Timezone (2 pts):** `config/app.php` set to `Asia/Jakarta`, `ProkerCreateTest` (8/8 passing incl. `Carbon::setTestNow` WIB check), JS tests 39/39 passing, Vite build & Pint clean
 - **Remaining features:**
-  - [ ] **Create Proker Backend (4 pts):** `POST /proker` controller & Form Request in a DB transaction (1 person 1 role, Ketupel ≠ PJ, valid jobdescs, Hari-H ≥ today, repeat link)
-  - [ ] **Create Proker Form & Seeder (3 pts):** Feed real DB members & past prokers into `/proker/baru`, show server 422 errors, redirect to saved proker, build `ProkerSeeder`
-  - [ ] **Create-Flow Tests & WIB Timezone (2 pts):** PHP feature tests for every rule, keep `proker-form.test.mjs` green, set `Asia/Jakarta` timezone with `Carbon::setTestNow`
+  - [ ] **`ProkerSeeder` (1 pt):** Seed the 7 baseline prokers (with divisions, assignments, jobdescs, meetings) into Supabase
   - [ ] **CI/CD Overhaul for Supabase/Postgres (3 pts):** Fix `deploy.yaml` (`postgres:16`, `pgsql` ext, `npm ci`, JS tests + Pint, `contents: read`, SSH key, zero-downtime swap)
   - [ ] **AI Integration (3 pts):** Build and integrate Himpun's AI feature(s) (scope & provider to be finalized)
   - [ ] **Docs & Final Cleanup (1 pt):** `docs/DEPLOY.md`, keep `README.md` current, delete `welcome.blade.php`, and closing PR deleting `DummyData.php`
@@ -235,6 +235,12 @@ Himpun is built by three people. After BB's first milestone merged (`7ed1137`), 
 3. No repo-wide formatting or dependency updates. Only BB changes `composer.*` and `package*.json`.
 4. `DummyData.php` is frozen; Sean deletes it in the closing PR (2.7).
 5. Rebase on `main` daily, keep PRs small, and make `php artisan test`, `node --test "tests/js/*.test.mjs"`, and `vendor/bin/pint --test <your files>` pass before opening one.
+
+> [!IMPORTANT]
+> **For AI coding agents (Claude, Cursor, Codex, Antigravity, etc.):** Whenever you finish and verify a feature for **BB**, **Sean**, or **Dzacky**, **automatically update both `README.md` and `docs/pembagian-tugas.md`** before finishing:
+> - Check off `[ ]` → `[x]` **only under your owner's section** and update their remaining points.
+> - Update **only your owner's row(s)** in `Feature Status & Roadmap` and `Database Structure` (if a table/model was added).
+> - Never edit another teammate's section or mark anything `[x]` before tests + `vendor/bin/pint --test <your files>` pass.
 
 ---
 
