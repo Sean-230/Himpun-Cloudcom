@@ -223,6 +223,11 @@ Himpun is built by three people. After BB's first milestone merged (`7ed1137`), 
   - [ ] **Live Proker Detail (5 pts):** Move `/proker/{id}` off `DummyData` and save ticked/added/removed jobdescs & weekly meetings (HOD only, 403 for others)
   - [ ] **Proker List & Detail Tests (3 pts):** PHP feature tests for `/proker`, `/proker/{id}`, `summaryForUser()` & write guards + keep `proker-detail.test.mjs` green
 
+**Route jobdesc:**
+- **BB:** `routes/auth.php`, `routes/dosen.php`, `routes/dashboard.php` (`/`, `/login`, `/logout`, `/register`, `/peran`, `/admin`, `/anggota`, `/divisi`, `/jobdesc`, `/dosen/*`, `/dashboard`)
+- **Sean:** `routes/proker_write.php`, `routes/ai.php` (`/proker/baru`, `POST /proker`, `/ai/*`)
+- **Dzacky:** `routes/proker_read.php`, `routes/request.php` (`/proker`, `/proker/{id}`, jobdesc & meeting endpoints, `/request-divisi*`)
+
 **Working agreement (details in the doc):**
 
 1. Edit only the files you own. Need a change elsewhere? Open a tiny PR to `main` first.

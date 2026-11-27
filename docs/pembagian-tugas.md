@@ -22,18 +22,17 @@ Points are relative effort (1 = small, 5 = a solid chunk of work), not hours.
 5. **`DummyData.php` is frozen.** Nobody edits or deletes it. Build new code next to it and move your own pages over. Sean deletes it in the closing PR (2.6).
 6. **Lockfiles and `package.json` / `composer.json` are BB's.** Need a package: ask BB.
 
-## Step 0: preparation (do once on `main` before new PRs)
+## Route jobdesc
 
-One small PR to `main`, then all three rebase on it. This fixes the current merge/test conflict bottleneck.
+Tiap orang membuat file route-nya sendiri lalu menambah 1 baris `require __DIR__.'/...';` di `routes/web.php` saat PR:
 
-| # | What | Why |
+| Owner | File Route yang Dibuat & Dikelola | Endpoint |
 |---|---|---|
-| 0.1 | Split `routes/web.php` into a thin loader plus `routes/auth.php` (BB), `routes/proker_write.php` (Sean), `routes/proker_read.php` (Dzacky), `routes/request.php` (Dzacky) | One 266-line shared route file blocks `route:cache` and causes conflicts on every PR |
-| 0.2 | Move Alpine components to `resources/js/components/` and make `app.js` register them automatically (`import.meta.glob`) | A new component no longer edits `app.js` |
-| 0.3 | Move proker visibility helpers out of `Access.php` into `App\Support\ProkerAccess` (`canSee`, `listFor`, `roleLabel`, `divisionsCoordinated`). `Access.php` keeps identity only | Two owners, two files |
-| 0.4 | Add `tests/Concerns/ActsAsRole.php` (`$this->as($role, $name)`) and split feature tests per part | Unbreaks the 17 failing PHPUnit tests and stops test-file collisions |
-| 0.5 | `DatabaseSeeder` calls three seeders: `OrganisationSeeder` (BB), `ProkerSeeder` (Sean), `RequestSeeder` (Dzacky) | Nobody edits `DatabaseSeeder` again |
-| 0.6 | Run Pint over the 10 failing files on `main` and add `.github/CODEOWNERS` from the ownership map | Gets CI style check green and auto-assigns PR reviewers |
+| **BB** | `routes/auth.php`, `routes/dosen.php`, `routes/dashboard.php` | `/`, `/login`, `/logout`, `/register`, `/peran`, `/admin`, `/anggota`, `/divisi`, `/jobdesc`, `/dosen/*`, `/dashboard` |
+| **Sean** | `routes/proker_write.php`, `routes/ai.php` | `/proker/baru`, `POST /proker`, `/ai/*` |
+| **Dzacky** | `routes/proker_read.php`, `routes/request.php` | `/proker`, `/proker/{id}`, jobdesc & rapat endpoints, `/request-divisi*` |
+
+> **Tips anti-tunggu:** Setelah `Sean` (`1441485`, database & model baru) di-merge ke `main`, BB dan Dzacky cukup `git pull origin main` sekali — semua tabel & model sudah siap, dan ketiganya bisa langsung kerja paralel di file masing-masing tanpa saling tunggu.
 
 ---
 
@@ -118,7 +117,7 @@ Dzacky finishes 3.1–3.3 first (independent), then starts 3.4–3.6 right after
 |---|---|
 | `app/Support/Access.php`, `app/Http/Middleware/**`, `app/Models/{User,Organisation,Term,Division,Membership,Jobdesc}.php`, `app/Providers/AppServiceProvider.php`, `bootstrap/**`, `config/{auth,session}.php` | **BB** |
 | `database/seeders/OrganisationSeeder.php`, auth/members/divisions/admin/dashboard controllers & Form Requests | **BB** |
-| `routes/auth.php` (`/`, `/login`, `/logout`, `/peran`, `/dashboard`, `/admin`, `/anggota`, `/divisi`, `/jobdesc`) | **BB** |
+| `routes/auth.php`, `routes/dosen.php`, `routes/dashboard.php` (`/`, `/login`, `/logout`, `/register`, `/peran`, `/dashboard`, `/dosen/*`, `/admin`, `/anggota`, `/divisi`, `/jobdesc`) | **BB** |
 | `resources/views/{layouts,admin,auth,errors,members,divisions}/**`, `resources/views/dashboard*.blade.php`, `resources/css/app.css`, `resources/js/components/role-switch.js` | **BB** |
 | `composer.json`, `composer.lock`, `package.json`, `package-lock.json`, `vite.config.js`, `.env.example` | **BB** |
 | `app/Models/Proker*.php`, `app/Enums/ProkerStatus.php`, `database/seeders/ProkerSeeder.php`, proker-store controller & `StoreProkerRequest` | **Sean** |
@@ -135,13 +134,12 @@ Dzacky finishes 3.1–3.3 first (independent), then starts 3.4–3.6 right after
 
 ## Merge order
 
-1. **Step 0** merged to `main` (routes split, `DatabaseSeeder`, Pint fix, `ActsAsRole` scaffold). All three rebase on `main`.
-2. **BB 1.4** (unbreak the 17 failing PHPUnit tests on `main`) + **Sean 2.1** (Proker models, migrations, `ProkerStatus`) merge first. Dzacky finishes 3.1–3.3 in parallel.
-3. Everyone works in parallel with zero file collisions:
-   - BB: 1.1, 1.2, 1.3, 1.5, 1.6
-   - Sean: 2.2, 2.3, 2.4, 2.5
-   - Dzacky: 3.4, 3.5, 3.6
-4. **Sean 2.6** closing PR: delete `DummyData.php` + `DummyDataTest.php`, run Pint across the repo, verify `DEPLOY.md` & `README.md`.
+1. **Sean 2.1 (`Sean` → `main`)** merge dulu (database overhaul + semua model & Supabase `himpun` schema). BB & Dzacky `git pull origin main`.
+2. Setelah itu **ketiganya kerja 100% paralel tanpa saling tunggu** (tiap orang bikin file route & fitur miliknya sendiri):
+   - **BB:** 1.1–1.5 (`routes/{auth,dosen,dashboard}.php`, `/register`, Dosen Pembina 2-Tab Dashboard, HOD/PJ Dashboards, perbaiki 17 tes)
+   - **Sean:** 2.2–2.6 (`routes/{proker_write,ai}.php`, `POST /proker`, `ProkerSeeder`, WIB timezone, CI/CD Postgres, AI Integration)
+   - **Dzacky:** 3.1–3.6 (`routes/{proker_read,request}.php`, `division_requests`, `ProkerAccess`, `/proker` list & detail)
+3. **Sean 2.7** closing PR: hapus `DummyData.php` + `DummyDataTest.php`, jalankan Pint seluruh repo, finalisasi `README.md` & `docs/DEPLOY.md`.
 
 ## Definition of done (every PR)
 

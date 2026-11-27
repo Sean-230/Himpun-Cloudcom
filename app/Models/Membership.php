@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Membership extends Model
 {
@@ -42,5 +43,10 @@ class Membership extends Model
     public function jobdesc(): BelongsTo
     {
         return $this->belongsTo(Jobdesc::class);
+    }
+
+    public function prokerAssignments(): HasMany
+    {
+        return $this->hasMany(ProkerAssignment::class);
     }
 }
